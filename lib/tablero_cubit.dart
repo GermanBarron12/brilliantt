@@ -34,4 +34,10 @@ class TableroCubit extends Cubit<TableroEstado> {
     if (zonas.isEmpty) return;
     emit(TableroListo(Tablero(id: id, zonas: zonas)));
   }
+
+  void agregarValor(String zonaId, int valor) {
+    final estado = state;
+    if (estado is! TableroListo) return;
+    emit(TableroListo(estado.tablero.agregarValor(zonaId, valor)));
+  }
 }
