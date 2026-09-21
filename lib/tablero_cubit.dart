@@ -1,6 +1,8 @@
+import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 
 import 'tablero.dart';
+import 'zona.dart';
 
 // los dos estados en los que puede estar el tablero: sin arrancar,
 // o ya listo para jugar
@@ -22,4 +24,14 @@ class TableroListo extends TableroEstado {
 
   @override
   List<Object?> get props => [tablero];
+}
+
+// arranca sin nada y no se puede jugar hasta darle las zonas iniciales
+class TableroCubit extends Cubit<TableroEstado> {
+  TableroCubit() : super(const TableroSinIniciar());
+
+  void iniciar({required String id, required List<Zona> zonas}) {
+    if (zonas.isEmpty) return;
+    emit(TableroListo(Tablero(id: id, zonas: zonas)));
+  }
 }
