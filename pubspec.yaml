@@ -8,6 +8,7 @@ environment:
 dependencies:
   equatable: ^2.0.5
   bloc: ^8.1.4
+  flutter_bloc: ^8.1.6
   flutter:
     sdk: flutter
 
@@ -15,3 +16,6 @@ dev_dependencies:
   test: ^1.25.0
   flutter_test:
     sdk: flutter
+
+flutter:
+  uses-material-design: true
