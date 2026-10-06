@@ -18,6 +18,13 @@ class PosicionCasilla {
   final int columna;
 
   const PosicionCasilla(this.fila, this.columna);
+
+  @override
+  bool operator ==(Object other) =>
+      other is PosicionCasilla && other.fila == fila && other.columna == columna;
+
+  @override
+  int get hashCode => Object.hash(fila, columna);
 }
 
 /// Layout del tablero nivel 1 de Brilliant: una grilla de 7x7 casillas
