@@ -42,4 +42,17 @@ void main() {
     expect(find.text('Los números no pueden repetirse.'), findsOneWidget);
     expect(botonInicio(tester).onPressed, isNull);
   });
+
+  testWidgets('Inicio abre la partida con los 6 números colocados', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: NumerosInicialesScreen()));
+
+    for (var i = 0; i < 6; i++) {
+      await elegirEnCasillaEstrella(tester, i, i + 1);
+    }
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Inicio'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tirar dados'), findsOneWidget);
+    expect(find.text('6'), findsOneWidget);
+  });
 }

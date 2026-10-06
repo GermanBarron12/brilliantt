@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'juego_cubit.dart';
+import 'juego_screen.dart';
 import 'numeros_iniciales_cubit.dart';
 import 'tablero_layout.dart';
 import 'tablero_widget.dart';
@@ -67,7 +68,7 @@ class _NumerosInicialesVista extends StatelessWidget {
                 ],
                 const SizedBox(height: 16),
                 ElevatedButton(
-                  onPressed: estado.esValido ? () => _iniciarPartida(context) : null,
+                  onPressed: estado.esValido ? () => _iniciarPartida(context, estado) : null,
                   child: const Text('Inicio'),
                 ),
               ],
@@ -111,11 +112,14 @@ class _NumerosInicialesVista extends StatelessWidget {
     }
   }
 
-  void _iniciarPartida(BuildContext context) {
-    // Por ahora esto es el límite del alcance: solo confirmar que los
-    // números iniciales son válidos.
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Números iniciales válidos. ¡A jugar!')),
+  void _iniciarPartida(BuildContext context, NumerosInicialesEstado estado) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => BlocProvider(
+          create: (_) => JuegoCubit(tableroDesdeNumerosIniciales(estado.valores)),
+          child: const JuegoScreen(),
+        ),
+      ),
     );
   }
 }
