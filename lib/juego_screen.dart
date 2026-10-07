@@ -53,7 +53,7 @@ class JuegoScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 ElevatedButton(
-                  onPressed: cubit.tirarDados,
+                  onPressed: estado.puedeVolverATirar ? cubit.tirarDados : null,
                   child: const Text('Tirar dados'),
                 ),
               ],
