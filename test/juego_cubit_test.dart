@@ -3,7 +3,9 @@ import 'dart:math';
 import 'package:test/test.dart';
 
 import 'package:brilliant/juego_cubit.dart';
+import 'package:brilliant/puntuacion.dart';
 import 'package:brilliant/tablero_layout.dart';
+import 'package:brilliant/zonas_tablero.dart';
 
 /// Devuelve, en orden, los valores de dados que se le pidan.
 class _DadosFijos implements Random {
@@ -89,6 +91,82 @@ void main() {
       expect(cubit.state.dados, isNull);
       expect(cubit.state.ancla, isNull);
       cubit.close();
+    });
+
+    test('dados [3,5]: con ancla en el 3 el número a colocar es el 5', () {
+      final cubit = JuegoCubit(tableroInicial, random: _DadosFijos([3, 5]));
+      cubit.tirarDados();
+      cubit.tocarCasilla(const PosicionCasilla(3, 1)); // estrella con el 3
+
+      expect(cubit.state.numeroAColocar, 5);
+      cubit.close();
+    });
+
+    test('dados [3,5]: con ancla en el 5 el número a colocar es el 3', () {
+      final cubit = JuegoCubit(tableroInicial, random: _DadosFijos([3, 5]));
+      cubit.tirarDados();
+      cubit.tocarCasilla(const PosicionCasilla(5, 2)); // estrella con el 5
+
+      expect(cubit.state.numeroAColocar, 3);
+      cubit.close();
+    });
+
+    test('una casilla ya ocupada deja de aparecer como válida', () {
+      final cubit = JuegoCubit(tableroInicial, random: _DadosFijos([1, 6, 1, 6]));
+      cubit.tirarDados();
+      cubit.tocarCasilla(const PosicionCasilla(0, 2)); // ancla con el 1
+      cubit.tocarCasilla(const PosicionCasilla(0, 1)); // coloca el 6 acá
+
+      cubit.tirarDados();
+      cubit.tocarCasilla(const PosicionCasilla(0, 2)); // mismo ancla otra vez
+
+      expect(cubit.state.casillasValidas, isNot(contains(const PosicionCasilla(0, 1))));
+      expect(cubit.state.casillasValidas, contains(const PosicionCasilla(0, 3)));
+      cubit.close();
+    });
+  });
+
+  group('JuegoEstado.puntaje', () {
+    test('una zona incompleta no otorga puntos', () {
+      expect(JuegoEstado(tablero: tableroInicial).puntaje, 0);
+    });
+
+    test('una zona completa otorga el valor de su color', () {
+      final tablero = List.generate(7, (_) => List<int?>.filled(7, null));
+      final zonaVerde = zonasNivel1.firstWhere((z) => z.color == ColorZona.verde);
+      for (final casilla in zonaVerde.casillas) {
+        tablero[casilla.fila][casilla.columna] = 1;
+      }
+
+      final estado = JuegoEstado(tablero: tablero);
+      expect(estado.puntaje, puntosPorZonaCompleta[ColorZona.verde]);
+    });
+
+    test('el puntaje total suma todas las zonas completas', () {
+      final tablero = List.generate(7, (_) => List<int?>.filled(7, null));
+      final zonaVerde = zonasNivel1.firstWhere((z) => z.color == ColorZona.verde);
+      final zonaAzul = zonasNivel1.firstWhere((z) => z.color == ColorZona.azul);
+      for (final casilla in zonaVerde.casillas) {
+        tablero[casilla.fila][casilla.columna] = 1;
+      }
+      for (final casilla in zonaAzul.casillas) {
+        tablero[casilla.fila][casilla.columna] = 2;
+      }
+
+      final esperado =
+          puntosPorZonaCompleta[ColorZona.verde]! + puntosPorZonaCompleta[ColorZona.azul]!;
+      expect(JuegoEstado(tablero: tablero).puntaje, esperado);
+    });
+
+    test('recalcular el puntaje no duplica puntos', () {
+      final tablero = List.generate(7, (_) => List<int?>.filled(7, null));
+      final zonaVerde = zonasNivel1.firstWhere((z) => z.color == ColorZona.verde);
+      for (final casilla in zonaVerde.casillas) {
+        tablero[casilla.fila][casilla.columna] = 1;
+      }
+
+      final estado = JuegoEstado(tablero: tablero);
+      expect(estado.puntaje, estado.puntaje);
     });
   });
 }

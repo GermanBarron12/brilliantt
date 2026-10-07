@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:bloc/bloc.dart';
 
+import 'puntuacion.dart';
 import 'tablero_layout.dart';
 import 'zonas_tablero.dart';
 
@@ -64,6 +65,20 @@ class JuegoEstado {
     final zona = zonasNivel1.firstWhere((z) => z.casillas.contains(posicion));
     final valoresEnZona = zona.casillas.map(valorEn).whereType<int>().toList();
     return zona.tipo.esPosibleAgregar(valoresEnZona, numero);
+  }
+
+  /// Puntaje total: se recorre cada zona del tablero y, si ya está completa
+  /// (todas sus casillas tienen número), se suma el valor de su color. Se
+  /// calcula siempre desde el tablero actual, nunca se acumula aparte.
+  int get puntaje {
+    var total = 0;
+    for (final zona in zonasNivel1) {
+      final completa = zona.casillas.every((c) => valorEn(c) != null);
+      if (completa) {
+        total += puntosPorZonaCompleta[zona.color]!;
+      }
+    }
+    return total;
   }
 }
 
