@@ -53,8 +53,15 @@ class JuegoEstado {
     final a = ancla;
     final numero = numeroAColocar;
     if (a == null || numero == null) return const [];
+    return _casillasValidasDesde(a, numero);
+  }
 
-    final vecinas = vecinasOrtogonales(a, tablero.length, tablero[0].length);
+  /// Casillas vacías vecinas de [origen] donde se puede escribir [numero]
+  /// sin romper la regla de su zona. La usan tanto [casillasValidas] (con
+  /// el ancla ya elegida) como [_hayJugadaPosible] (probando cada casilla
+  /// del tablero como posible ancla).
+  List<PosicionCasilla> _casillasValidasDesde(PosicionCasilla origen, int numero) {
+    final vecinas = vecinasOrtogonales(origen, tablero.length, tablero[0].length);
     return [
       for (final vecina in vecinas)
         if (valorEn(vecina) == null && _zonaAcepta(vecina, numero)) vecina,
@@ -66,6 +73,31 @@ class JuegoEstado {
     final valoresEnZona = zona.casillas.map(valorEn).whereType<int>().toList();
     return zona.tipo.esPosibleAgregar(valoresEnZona, numero);
   }
+
+  /// true si, con los dados actuales, existe al menos una casilla con uno
+  /// de los dos números que tenga una vecina vacía donde se pueda escribir
+  /// el otro número. Recorre todo el tablero, no solo el ancla seleccionado.
+  bool get _hayJugadaPosible {
+    final d = dados;
+    if (d == null) return false;
+
+    for (var fila = 0; fila < tablero.length; fila++) {
+      for (var columna = 0; columna < tablero[fila].length; columna++) {
+        final posicion = PosicionCasilla(fila, columna);
+        final valor = valorEn(posicion);
+        if (valor == null || (valor != d[0] && valor != d[1])) continue;
+
+        final numeroOpuesto = valor == d[0] ? d[1] : d[0];
+        if (_casillasValidasDesde(posicion, numeroOpuesto).isNotEmpty) return true;
+      }
+    }
+    return false;
+  }
+
+  /// true si todavía no se tiró (dados null) o si la tirada actual no tiene
+  /// ninguna jugada posible. Cuando hay una jugada posible, los dados deben
+  /// quedar bloqueados hasta que el jugador la resuelva.
+  bool get puedeVolverATirar => dados == null || !_hayJugadaPosible;
 
   /// Puntaje total: se recorre cada zona del tablero y, si ya está completa
   /// (todas sus casillas tienen número), se suma el valor de su color. Se
@@ -89,7 +121,11 @@ class JuegoCubit extends Cubit<JuegoEstado> {
       : _random = random ?? Random(),
         super(JuegoEstado(tablero: tableroInicial));
 
+  /// No hace nada si la tirada actual ya tiene una jugada posible: hay que
+  /// resolverla antes de poder volver a tirar.
   void tirarDados() {
+    if (!state.puedeVolverATirar) return;
+
     final dados = [_random.nextInt(6) + 1, _random.nextInt(6) + 1];
     emit(JuegoEstado(tablero: state.tablero, dados: dados));
   }

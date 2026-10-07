@@ -24,6 +24,19 @@ class _DadosFijos implements Random {
   double nextDouble() => 0;
 }
 
+/// Tablero vacío con dos números sueltos, pensado para controlar a mano
+/// cuáles casillas quedan libres:
+/// - (0,0) = 3, con sus dos vecinas ocupadas (no tiene destino posible).
+/// - (6,6) = 5, con sus vecinas vacías (sí tiene destino posible).
+List<List<int?>> _tableroPersonalizado() {
+  final tablero = List.generate(7, (_) => List<int?>.filled(7, null));
+  tablero[0][0] = 3;
+  tablero[1][0] = 9; // ocupa una vecina de (0,0)
+  tablero[0][1] = 9; // ocupa la otra vecina de (0,0)
+  tablero[6][6] = 5;
+  return tablero;
+}
+
 void main() {
   // Estrellas del nivel 1 con los números 1 a 6 en orden.
   // Estrella 0 está en (0,2) azul; el resto no nos importa para estas pruebas.
@@ -167,6 +180,65 @@ void main() {
 
       final estado = JuegoEstado(tablero: tablero);
       expect(estado.puntaje, estado.puntaje);
+    });
+  });
+
+  group('JuegoEstado.puedeVolverATirar', () {
+    test('numero presente pero sin ningun destino vacio: se puede volver a tirar', () {
+      // (0,0) tiene el 3 pero sus dos vecinas están ocupadas.
+      final estado = JuegoEstado(tablero: _tableroPersonalizado(), dados: const [3, 1]);
+      expect(estado.puedeVolverATirar, isTrue);
+    });
+
+    test('dados [3,5] con jugada directa posible: los dados quedan bloqueados', () {
+      // En el tablero inicial, la estrella (3,1) tiene el 3 y su vecina
+      // (2,1) está vacía y acepta el 5 (zona roja: valores distintos).
+      final estado = JuegoEstado(tablero: tableroInicial, dados: const [3, 5]);
+      expect(estado.puedeVolverATirar, isFalse);
+    });
+
+    test('solo la jugada inversa es posible: los dados tambien quedan bloqueados', () {
+      // (0,0)=3 está bloqueada por sus vecinas, pero (6,6)=5 sí tiene una
+      // vecina vacía que acepta el 3. Alcanza con que una dirección sirva.
+      final estado = JuegoEstado(tablero: _tableroPersonalizado(), dados: const [3, 5]);
+      expect(estado.puedeVolverATirar, isFalse);
+    });
+
+    test('numero existe en el tablero pero sin destino valido: no se confunde con jugada posible', () {
+      final tablero = [for (final fila in tableroInicial) [...fila]];
+      // Encierra la estrella (0,2)=1 ocupando sus tres vecinas...
+      tablero[1][2] = 9;
+      tablero[0][1] = 9;
+      tablero[0][3] = 9;
+      // ...y también la estrella (6,4)=6, para que ningún 1 ni 6 del
+      // tablero tenga una vecina vacía.
+      tablero[5][4] = 9;
+      tablero[6][3] = 9;
+      tablero[6][5] = 9;
+
+      final estado = JuegoEstado(tablero: tablero, dados: const [1, 6]);
+      expect(estado.puedeVolverATirar, isTrue);
+    });
+
+    test('tirada sin jugada permite re-tirar; la siguiente con jugada bloquea', () {
+      final cubit = JuegoCubit(_tableroPersonalizado(), random: _DadosFijos([1, 2, 3, 5]));
+
+      cubit.tirarDados(); // dados [1,2]: ningún número está en el tablero
+      expect(cubit.state.puedeVolverATirar, isTrue);
+
+      cubit.tirarDados(); // dados [3,5]: hay jugada (la inversa)
+      expect(cubit.state.puedeVolverATirar, isFalse);
+      cubit.close();
+    });
+
+    test('tirarDados no hace nada si ya hay una jugada posible', () {
+      final cubit = JuegoCubit(tableroInicial, random: _DadosFijos([3, 5, 1, 2]));
+      cubit.tirarDados(); // dados [3,5], hay jugada: queda bloqueado
+
+      cubit.tirarDados(); // no debería cambiar nada
+
+      expect(cubit.state.dados, [3, 5]);
+      cubit.close();
     });
   });
 }
