@@ -24,6 +24,11 @@ class JuegoScreen extends StatelessWidget {
             child: Column(
               children: [
                 Text(
+                  'Puntaje: ${estado.puntaje}',
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text(
                   dados == null
                       ? 'Tira los dados para empezar.'
                       : 'Dados: ${dados[0]} y ${dados[1]}. '
