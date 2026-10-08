@@ -390,4 +390,68 @@ void main() {
       }
     });
   });
+
+  group('MovimientoLog', () {
+    test('una colocacion valida genera exactamente un log', () {
+      final cubit = JuegoCubit(tableroInicial, random: _DadosFijos([1, 6]));
+      cubit.tirarDados();
+      cubit.tocarCasilla(const PosicionCasilla(0, 2)); // ancla con el 1
+      cubit.tocarCasilla(const PosicionCasilla(0, 1)); // coloca el 6
+
+      expect(cubit.state.logs.length, 1);
+      cubit.close();
+    });
+
+    test('seleccionar un ancla sin colocar no genera log', () {
+      final cubit = JuegoCubit(tableroInicial, random: _DadosFijos([1, 6]));
+      cubit.tirarDados();
+      cubit.tocarCasilla(const PosicionCasilla(0, 2)); // solo selecciona el ancla
+
+      expect(cubit.state.logs, isEmpty);
+      cubit.close();
+    });
+
+    test('tirar los dados no genera log', () {
+      final cubit = JuegoCubit(tableroInicial, random: _DadosFijos([1, 6]));
+      cubit.tirarDados();
+
+      expect(cubit.state.logs, isEmpty);
+      cubit.close();
+    });
+
+    test('el log contiene los datos del movimiento y el puntaje antes/despues', () {
+      final cubit = JuegoCubit(tableroInicial, random: _DadosFijos([1, 6]));
+      cubit.tirarDados();
+      cubit.tocarCasilla(const PosicionCasilla(0, 2)); // ancla con el 1
+      cubit.tocarCasilla(const PosicionCasilla(0, 1)); // coloca el 6 (zona verde)
+
+      final log = cubit.state.logs.single;
+      expect(log.turno, 1);
+      expect(log.dados, [1, 6]);
+      expect(log.ancla, const PosicionCasilla(0, 2));
+      expect(log.valorAncla, 1);
+      expect(log.destino, const PosicionCasilla(0, 1));
+      expect(log.numeroColocado, 6);
+      expect(log.zona, ColorZona.verde);
+      expect(log.puntajeAntes, 0);
+      expect(log.puntajeDespues, 0); // la zona verde de (0,1) no quedó completa
+      cubit.close();
+    });
+
+    test('dos colocaciones generan dos logs en orden, sin perder el anterior', () {
+      final cubit = JuegoCubit(tableroInicial, random: _DadosFijos([1, 6, 2, 6]));
+      cubit.tirarDados();
+      cubit.tocarCasilla(const PosicionCasilla(0, 2));
+      cubit.tocarCasilla(const PosicionCasilla(0, 1)); // primera colocación
+
+      cubit.tirarDados();
+      cubit.tocarCasilla(const PosicionCasilla(1, 5)); // estrella con el 2
+      cubit.tocarCasilla(const PosicionCasilla(1, 4)); // coloca el 6
+
+      expect(cubit.state.logs.length, 2);
+      expect(cubit.state.logs[0].turno, 1);
+      expect(cubit.state.logs[1].turno, 2);
+      cubit.close();
+    });
+  });
 }

@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:bloc/bloc.dart';
 
+import 'movimiento_log.dart';
 import 'puntuacion.dart';
 import 'tablero_layout.dart';
 import 'zonas_tablero.dart';
@@ -29,7 +30,16 @@ class JuegoEstado {
   /// Casilla con un número ya escrito que el jugador seleccionó.
   final PosicionCasilla? ancla;
 
-  const JuegoEstado({required this.tablero, this.dados, this.ancla});
+  /// Historial de colocaciones ya realizadas, en orden. Solo crece cuando
+  /// se coloca un número (ver [JuegoCubit._colocar]).
+  final List<MovimientoLog> logs;
+
+  const JuegoEstado({
+    required this.tablero,
+    this.dados,
+    this.ancla,
+    this.logs = const [],
+  });
 
   int? valorEn(PosicionCasilla posicion) => tablero[posicion.fila][posicion.columna];
 
@@ -134,26 +144,54 @@ class JuegoCubit extends Cubit<JuegoEstado> {
     if (!state.puedeVolverATirar) return;
 
     final dados = [_random.nextInt(6) + 1, _random.nextInt(6) + 1];
-    emit(JuegoEstado(tablero: state.tablero, dados: dados));
+    emit(JuegoEstado(tablero: state.tablero, dados: dados, logs: state.logs));
   }
 
   /// Si la casilla es una de las válidas, escribe el número ahí. Si tiene
   /// un número, la selecciona como ancla. En cualquier otro caso quita la
-  /// selección.
+  /// selección. Seleccionar (o deseleccionar) un ancla nunca genera un log.
   void tocarCasilla(PosicionCasilla posicion) {
     if (state.casillasValidas.contains(posicion)) {
       _colocar(posicion);
     } else if (state.valorEn(posicion) != null) {
-      emit(JuegoEstado(tablero: state.tablero, dados: state.dados, ancla: posicion));
+      emit(JuegoEstado(
+        tablero: state.tablero,
+        dados: state.dados,
+        ancla: posicion,
+        logs: state.logs,
+      ));
     } else {
-      emit(JuegoEstado(tablero: state.tablero, dados: state.dados));
+      emit(JuegoEstado(tablero: state.tablero, dados: state.dados, logs: state.logs));
     }
   }
 
   /// Al colocar el número se gastan los dados: hay que volver a tirar.
+  /// Este es el único lugar donde se agrega un [MovimientoLog].
   void _colocar(PosicionCasilla posicion) {
+    final ancla = state.ancla!;
+    final dados = state.dados!;
+    final valorAncla = state.valorEn(ancla)!;
+    final numeroColocado = state.numeroAColocar!;
+    final puntajeAntes = state.puntaje;
+
     final nuevoTablero = [for (final fila in state.tablero) [...fila]];
-    nuevoTablero[posicion.fila][posicion.columna] = state.numeroAColocar;
-    emit(JuegoEstado(tablero: nuevoTablero));
+    nuevoTablero[posicion.fila][posicion.columna] = numeroColocado;
+
+    final zona = zonasNivel1.firstWhere((z) => z.casillas.contains(posicion));
+    final puntajeDespues = JuegoEstado(tablero: nuevoTablero).puntaje;
+
+    final log = MovimientoLog(
+      turno: state.logs.length + 1,
+      dados: dados,
+      ancla: ancla,
+      valorAncla: valorAncla,
+      destino: posicion,
+      numeroColocado: numeroColocado,
+      zona: zona.color,
+      puntajeAntes: puntajeAntes,
+      puntajeDespues: puntajeDespues,
+    );
+
+    emit(JuegoEstado(tablero: nuevoTablero, logs: [...state.logs, log]));
   }
 }
