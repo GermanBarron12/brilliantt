@@ -329,4 +329,65 @@ void main() {
       expect(estado.casillasValidas, contains(const PosicionCasilla(0, 0)));
     });
   });
+
+  group('JuegoEstado.casillasConJugadaPosible', () {
+    test('sin dados todavia, el conjunto esta vacio', () {
+      expect(JuegoEstado(tablero: tableroInicial).casillasConJugadaPosible, isEmpty);
+    });
+
+    test('una tirada sin jugadas produce un conjunto vacio', () {
+      final estado = JuegoEstado(tablero: _tableroPersonalizado(), dados: const [1, 2]);
+      expect(estado.casillasConJugadaPosible, isEmpty);
+    });
+
+    test('une los destinos de ambas orientaciones de los dados', () {
+      // Con dados [3,5] en el tablero inicial: (3,1)=3 permite colocar 5 en
+      // (2,1) o (3,2); (5,2)=5 permite colocar 3 en varias vecinas también.
+      final estado = JuegoEstado(tablero: tableroInicial, dados: const [3, 5]);
+
+      final validasDesde31 = JuegoEstado(
+        tablero: tableroInicial,
+        dados: const [3, 5],
+        ancla: const PosicionCasilla(3, 1),
+      ).casillasValidas;
+      final validasDesde52 = JuegoEstado(
+        tablero: tableroInicial,
+        dados: const [3, 5],
+        ancla: const PosicionCasilla(5, 2),
+      ).casillasValidas;
+
+      for (final destino in validasDesde31) {
+        expect(estado.casillasConJugadaPosible, contains(destino));
+      }
+      for (final destino in validasDesde52) {
+        expect(estado.casillasConJugadaPosible, contains(destino));
+      }
+    });
+
+    test('no incluye casillas ocupadas ni destinos en diagonal', () {
+      final estado = JuegoEstado(tablero: tableroInicial, dados: const [3, 5]);
+
+      for (final destino in estado.casillasConJugadaPosible) {
+        expect(estado.valorEn(destino), isNull);
+      }
+
+      // Ninguna estrella (ya ocupada) puede aparecer como destino.
+      for (final estrella in casillasEstrella) {
+        expect(estado.casillasConJugadaPosible, isNot(contains(estrella)));
+      }
+    });
+
+    test('solo incluye vecinos ortogonales, nunca en diagonal', () {
+      final estado = JuegoEstado(tablero: tableroInicial, dados: const [3, 5]);
+
+      for (final destino in estado.casillasConJugadaPosible) {
+        final esOrtogonalDeAlgunAncla = casillasEstrella.any((ancla) {
+          final difFila = (destino.fila - ancla.fila).abs();
+          final difColumna = (destino.columna - ancla.columna).abs();
+          return (difFila == 1 && difColumna == 0) || (difFila == 0 && difColumna == 1);
+        });
+        expect(esOrtogonalDeAlgunAncla, isTrue);
+      }
+    });
+  });
 }

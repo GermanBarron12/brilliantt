@@ -43,7 +43,9 @@ class JuegoScreen extends StatelessWidget {
                       child: TableroWidget(
                         valores: estado.tablero,
                         estrellas: casillasEstrella.toSet(),
-                        resaltadas: estado.casillasValidas.toSet(),
+                        resaltadas: estado.ancla != null
+                            ? estado.casillasValidas.toSet()
+                            : estado.casillasConJugadaPosible,
                         repetidas: const {},
                         seleccionada: estado.ancla,
                         onTap: cubit.tocarCasilla,

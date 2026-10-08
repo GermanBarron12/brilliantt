@@ -74,13 +74,16 @@ class JuegoEstado {
     return zona.tipo.esPosibleAgregar(valoresEnZona, numero);
   }
 
-  /// true si, con los dados actuales, existe al menos una casilla con uno
-  /// de los dos números que tenga una vecina vacía donde se pueda escribir
-  /// el otro número. Recorre todo el tablero, no solo el ancla seleccionado.
-  bool get _hayJugadaPosible {
+  /// Todas las casillas de destino posibles con los dados actuales, sin
+  /// necesidad de haber elegido un ancla todavía: la unión de los destinos
+  /// de cada casilla del tablero que podría servir de ancla. Se usa para
+  /// resaltarlas automáticamente apenas se tira (ver [JuegoScreen]); al
+  /// elegir un ancla puntual, el resaltado se reduce a [casillasValidas].
+  Set<PosicionCasilla> get casillasConJugadaPosible {
     final d = dados;
-    if (d == null) return false;
+    if (d == null) return const {};
 
+    final destinos = <PosicionCasilla>{};
     for (var fila = 0; fila < tablero.length; fila++) {
       for (var columna = 0; columna < tablero[fila].length; columna++) {
         final posicion = PosicionCasilla(fila, columna);
@@ -88,11 +91,15 @@ class JuegoEstado {
         if (valor == null || (valor != d[0] && valor != d[1])) continue;
 
         final numeroOpuesto = valor == d[0] ? d[1] : d[0];
-        if (_casillasValidasDesde(posicion, numeroOpuesto).isNotEmpty) return true;
+        destinos.addAll(_casillasValidasDesde(posicion, numeroOpuesto));
       }
     }
-    return false;
+    return destinos;
   }
+
+  /// true si, con los dados actuales, existe al menos una jugada posible en
+  /// todo el tablero (no solo desde el ancla seleccionado).
+  bool get _hayJugadaPosible => casillasConJugadaPosible.isNotEmpty;
 
   /// true si todavía no se tiró (dados null) o si la tirada actual no tiene
   /// ninguna jugada posible. Cuando hay una jugada posible, los dados deben
