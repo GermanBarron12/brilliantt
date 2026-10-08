@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'juego_cubit.dart';
+import 'reglas_zona_panel.dart';
 import 'tablero_layout.dart';
 import 'tablero_widget.dart';
 
@@ -35,7 +36,9 @@ class JuegoScreen extends StatelessWidget {
                           'Toca una casilla con uno de esos números y luego una casilla iluminada.',
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
+                const ReglasZonaPanel(),
+                const SizedBox(height: 12),
                 Expanded(
                   child: Center(
                     child: AspectRatio(
