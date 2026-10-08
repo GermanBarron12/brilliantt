@@ -76,4 +76,29 @@ List<ZonaTablero> calcularZonas(List<List<ColorZona>> matriz) {
   return zonas;
 }
 
-final List<ZonaTablero> zonasNivel1 = calcularZonas(layoutTableroNivel1);
+/// Colores cuyas casillas forman una única zona lógica en todo el tablero,
+/// aunque el flood fill las separe por no estar conectadas entre sí. En el
+/// nivel 1, las 5 casillas amarillas están todas aisladas (ninguna es vecina
+/// de otra), pero las reglas del juego indican que una casilla de puntuación
+/// sin línea que la conecte a una zona específica vale para todas las
+/// casillas de ese color del tablero: por eso el amarillo se trata como una
+/// sola zona para la regla "todos diferentes" y para el puntaje.
+const Set<ColorZona> coloresDeZonaUnica = {ColorZona.amarillo};
+
+/// Fusiona, para cada color en [coloresDeZonaUnica], todas sus zonas en una
+/// sola (uniendo sus casillas). Las zonas de los demás colores quedan igual
+/// que las devolvió el flood fill de [calcularZonas].
+List<ZonaTablero> _fusionarZonasUnicas(List<ZonaTablero> zonas) {
+  final fusionadas = <ZonaTablero>[];
+
+  for (final color in coloresDeZonaUnica) {
+    final partes = zonas.where((z) => z.color == color);
+    if (partes.isEmpty) continue;
+    fusionadas.add(ZonaTablero(color, [for (final zona in partes) ...zona.casillas]));
+  }
+
+  fusionadas.addAll(zonas.where((z) => !coloresDeZonaUnica.contains(z.color)));
+  return fusionadas;
+}
+
+final List<ZonaTablero> zonasNivel1 = _fusionarZonasUnicas(calcularZonas(layoutTableroNivel1));
