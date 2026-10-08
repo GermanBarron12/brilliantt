@@ -241,4 +241,92 @@ void main() {
       cubit.close();
     });
   });
+
+  group('JuegoEstado zona amarilla (fusionada)', () {
+    // Las 5 casillas amarillas del nivel 1, físicamente aisladas entre sí,
+    // pero una sola zona lógica desde que se corrigió zonasNivel1.
+    const casillasAmarillas = [
+      PosicionCasilla(0, 0),
+      PosicionCasilla(0, 6),
+      PosicionCasilla(3, 3),
+      PosicionCasilla(6, 0),
+      PosicionCasilla(6, 6),
+    ];
+
+    List<List<int?>> tableroVacio() => List.generate(7, (_) => List<int?>.filled(7, null));
+
+    test('no otorga puntos hasta que las 5 casillas amarillas estén llenas', () {
+      final tablero = tableroVacio();
+      const valores = [1, 2, 3, 4, 5];
+
+      for (var i = 0; i < casillasAmarillas.length; i++) {
+        final p = casillasAmarillas[i];
+        tablero[p.fila][p.columna] = valores[i];
+
+        final esLaUltima = i == casillasAmarillas.length - 1;
+        final puntaje = JuegoEstado(tablero: tablero).puntaje;
+        expect(puntaje, esLaUltima ? puntosPorZonaCompleta[ColorZona.amarillo] : 0);
+      }
+    });
+
+    test('al completarse otorga exactamente 6 puntos, una sola vez', () {
+      final tablero = tableroVacio();
+      const valores = [1, 2, 3, 4, 5];
+      for (var i = 0; i < casillasAmarillas.length; i++) {
+        final p = casillasAmarillas[i];
+        tablero[p.fila][p.columna] = valores[i];
+      }
+
+      final estado = JuegoEstado(tablero: tablero);
+      expect(estado.puntaje, 6);
+      expect(estado.puntaje, estado.puntaje); // leer de nuevo no duplica
+    });
+
+    test('completar amarillo y otra zona distinta suma ambos puntajes', () {
+      final tablero = tableroVacio();
+      const valores = [1, 2, 3, 4, 5];
+      for (var i = 0; i < casillasAmarillas.length; i++) {
+        final p = casillasAmarillas[i];
+        tablero[p.fila][p.columna] = valores[i];
+      }
+      final zonaVerde = zonasNivel1.firstWhere((z) => z.color == ColorZona.verde);
+      for (final c in zonaVerde.casillas) {
+        tablero[c.fila][c.columna] = 1;
+      }
+
+      final esperado =
+          puntosPorZonaCompleta[ColorZona.amarillo]! + puntosPorZonaCompleta[ColorZona.verde]!;
+      expect(JuegoEstado(tablero: tablero).puntaje, esperado);
+    });
+
+    test('rechaza repetir un numero entre dos casillas amarillas lejanas', () {
+      final tablero = tableroVacio();
+      tablero[6][6] = 5; // casilla amarilla lejana, ya con el 5
+      tablero[0][1] = 2; // ancla verde, vecina de la amarilla (0,0)
+
+      final estado = JuegoEstado(
+        tablero: tablero,
+        dados: const [2, 5],
+        ancla: const PosicionCasilla(0, 1),
+      );
+
+      expect(estado.numeroAColocar, 5);
+      expect(estado.casillasValidas, isNot(contains(const PosicionCasilla(0, 0))));
+    });
+
+    test('acepta un numero que todavia no existe en la zona amarilla', () {
+      final tablero = tableroVacio();
+      tablero[6][6] = 3; // casilla amarilla lejana, con un valor distinto
+      tablero[0][1] = 2; // ancla verde, vecina de la amarilla (0,0)
+
+      final estado = JuegoEstado(
+        tablero: tablero,
+        dados: const [2, 5],
+        ancla: const PosicionCasilla(0, 1),
+      );
+
+      expect(estado.numeroAColocar, 5);
+      expect(estado.casillasValidas, contains(const PosicionCasilla(0, 0)));
+    });
+  });
 }
