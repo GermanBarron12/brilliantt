@@ -6,7 +6,7 @@ void main() {
     const tipo = TipoRojo();
 
     test('color es el esperado', () {
-      expect(tipo.color.value, 0xFFF44336);
+      expect(tipo.color.toARGB32(), 0xFFF44336);
     });
 
     test('descripcion es la esperada', () {
@@ -34,7 +34,7 @@ void main() {
     const tipo = TipoAmarillo();
 
     test('color es el esperado', () {
-      expect(tipo.color.value, 0xFFFFC107);
+      expect(tipo.color.toARGB32(), 0xFFFFC107);
     });
 
     test('descripcion es la esperada', () {
@@ -62,7 +62,7 @@ void main() {
     const tipo = TipoVerde();
 
     test('color es el esperado', () {
-      expect(tipo.color.value, 0xFF4CAF50);
+      expect(tipo.color.toARGB32(), 0xFF4CAF50);
     });
 
     test('descripcion es la esperada', () {
@@ -86,7 +86,7 @@ void main() {
     const tipo = TipoAzul();
 
     test('color es el esperado', () {
-      expect(tipo.color.value, 0xFF2196F3);
+      expect(tipo.color.toARGB32(), 0xFF2196F3);
     });
 
     test('descripcion es la esperada', () {
@@ -114,7 +114,7 @@ void main() {
     const tipo = TipoMorado();
 
     test('color es el esperado', () {
-      expect(tipo.color.value, 0xFF9C27B0);
+      expect(tipo.color.toARGB32(), 0xFF9C27B0);
     });
 
     test('descripcion es la esperada', () {
