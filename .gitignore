@@ -1,4 +1,46 @@
-# https://dart.dev/guides/libraries/private-files
-# Created by `dart pub`
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.buildlog/
+.history
+.svn/
+migrate_working_dir/
+
+# IntelliJ / Android Studio related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# El folder .vscode guarda la configuración de lanzamiento y tareas de
+# VS Code, que podrías querer compartir en el repo, así que esta línea
+# queda comentada por defecto.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
 .dart_tool/
-build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio deja los artefactos de build acá
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# Resultados de `flutter test --coverage`
+coverage/
