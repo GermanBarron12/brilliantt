@@ -3,9 +3,21 @@ import 'dart:math';
 import 'package:test/test.dart';
 
 import 'package:brilliant/juego_cubit.dart';
+import 'package:brilliant/jugador.dart';
 import 'package:brilliant/puntuacion.dart';
 import 'package:brilliant/tablero_layout.dart';
+import 'package:brilliant/zona_identidad.dart';
 import 'package:brilliant/zonas_tablero.dart';
+
+/// ProveedorJugador de prueba, para confirmar que JuegoCubit no depende de
+/// ningun id fijo: usa el que le inyecten.
+class _JugadorDePrueba implements ProveedorJugador {
+  final String id;
+  const _JugadorDePrueba(this.id);
+
+  @override
+  String get jugadorActualId => id;
+}
 
 /// Devuelve, en orden, los valores de dados que se le pidan.
 class _DadosFijos implements Random {
@@ -647,6 +659,162 @@ void main() {
       expect(cubit.state.eventosTurno.single.turno, 1);
       expect(cubit.state.logs.single.turno, 2);
       expect(cubit.state.turnoActual, 3);
+      cubit.close();
+    });
+  });
+
+  group('eventos de puntuacion', () {
+    List<List<int?>> tableroVacio() => List.generate(7, (_) => List<int?>.filled(7, null));
+
+    test('completar una colocacion que no cierra su zona no genera evento', () {
+      final cubit = JuegoCubit(tableroInicial, random: _DadosFijos([1, 6]));
+      cubit.tirarDados();
+      cubit.seleccionarDado(1);
+      cubit.tocarCasilla(const PosicionCasilla(0, 2)); // ancla con el 1
+      cubit.tocarCasilla(const PosicionCasilla(0, 1)); // coloca el 6, zona verde sigue incompleta
+
+      expect(cubit.state.eventosPuntuacion, isEmpty);
+      cubit.close();
+    });
+
+    test('completar la zona azul inferior derecha otorga y notifica 7 puntos', () {
+      final tablero = tableroVacio();
+      tablero[4][6] = 2;
+      tablero[5][6] = 2;
+      tablero[6][5] = 2; // ancla: vecina vacia de (5,5)
+      // (5,5) queda vacia: es el ultimo cupo de la zona azul.
+
+      final cubit = JuegoCubit(tablero, random: _DadosFijos([2, 2]));
+      cubit.tirarDados();
+      cubit.seleccionarDado(2);
+      cubit.tocarCasilla(const PosicionCasilla(6, 5));
+      cubit.tocarCasilla(const PosicionCasilla(5, 5));
+
+      final zonaAzul = zonasNivel1.firstWhere((z) => z.color == ColorZona.azul &&
+          z.casillas.contains(const PosicionCasilla(5, 5)));
+      final evento = cubit.state.eventosPuntuacion.single;
+      expect(evento.puntosObtenidos, 7);
+      expect(evento.colorZona, ColorZona.azul);
+      expect(evento.turno, 1);
+      expect(evento.zonaId, idDeZona(zonaAzul));
+      expect(evento.nombreZona, 'Zona Azul inferior derecha');
+      cubit.close();
+    });
+
+    test('completar una zona verde otorga y notifica 4 puntos', () {
+      final tablero = tableroVacio();
+      tablero[1][6] = 1;
+      tablero[2][5] = 1;
+      tablero[2][6] = 7; // ancla
+      tablero[3][4] = 1;
+      tablero[3][5] = 1;
+      // (3,6) queda vacia: es el ultimo cupo de esta zona verde.
+
+      final cubit = JuegoCubit(tablero, random: _DadosFijos([7, 3]));
+      cubit.tirarDados();
+      cubit.seleccionarDado(7);
+      cubit.tocarCasilla(const PosicionCasilla(2, 6));
+      cubit.tocarCasilla(const PosicionCasilla(3, 6));
+
+      final evento = cubit.state.eventosPuntuacion.single;
+      expect(evento.puntosObtenidos, 4);
+      expect(evento.colorZona, ColorZona.verde);
+      cubit.close();
+    });
+
+    test('completar una zona roja otorga y notifica 6 puntos', () {
+      final tablero = tableroVacio();
+      tablero[2][1] = 1;
+      tablero[2][2] = 2;
+      tablero[3][1] = 3;
+      tablero[4][1] = 4;
+      tablero[5][0] = 9; // ancla
+      // (5,1) queda vacia: es el ultimo cupo de esta zona roja.
+
+      final cubit = JuegoCubit(tablero, random: _DadosFijos([9, 5]));
+      cubit.tirarDados();
+      cubit.seleccionarDado(9);
+      cubit.tocarCasilla(const PosicionCasilla(5, 0));
+      cubit.tocarCasilla(const PosicionCasilla(5, 1));
+
+      final evento = cubit.state.eventosPuntuacion.single;
+      expect(evento.puntosObtenidos, 6);
+      expect(evento.colorZona, ColorZona.rojo);
+      cubit.close();
+    });
+
+    test('completar una zona morada otorga y notifica 6 puntos', () {
+      final tablero = tableroVacio();
+      tablero[0][3] = 1;
+      tablero[0][4] = 1;
+      tablero[0][5] = 1;
+      tablero[1][4] = 1; // ancla
+      tablero[1][5] = 1;
+      // (2,4) queda vacia: es el ultimo cupo de esta zona morada.
+
+      final cubit = JuegoCubit(tablero, random: _DadosFijos([1, 1]));
+      cubit.tirarDados();
+      cubit.seleccionarDado(1);
+      cubit.tocarCasilla(const PosicionCasilla(1, 4));
+      cubit.tocarCasilla(const PosicionCasilla(2, 4));
+
+      final evento = cubit.state.eventosPuntuacion.single;
+      expect(evento.puntosObtenidos, 6);
+      expect(evento.colorZona, ColorZona.morado);
+      cubit.close();
+    });
+
+    test('completar la zona amarilla global genera el evento recien en la quinta casilla', () {
+      final tablero = tableroVacio();
+      tablero[0][0] = 1;
+      tablero[0][6] = 2;
+      tablero[3][3] = 3;
+      tablero[6][0] = 4;
+      tablero[6][5] = 9; // ancla, vecina vacia de (6,6)
+      // (6,6) queda vacia: es la quinta y ultima casilla amarilla.
+
+      final cubit = JuegoCubit(tablero, random: _DadosFijos([9, 5]));
+      cubit.tirarDados();
+      cubit.seleccionarDado(9);
+      cubit.tocarCasilla(const PosicionCasilla(6, 5));
+
+      expect(cubit.state.eventosPuntuacion, isEmpty); // todavia no se coloco
+
+      cubit.tocarCasilla(const PosicionCasilla(6, 6));
+
+      final evento = cubit.state.eventosPuntuacion.single;
+      expect(evento.puntosObtenidos, 6);
+      expect(evento.colorZona, ColorZona.amarillo);
+      expect(evento.nombreZona, 'Zona Amarillo');
+      cubit.close();
+    });
+
+    test('saltar el turno no genera ningun evento de puntuacion', () {
+      final cubit = JuegoCubit(tableroInicial, random: _DadosFijos([3, 5]));
+      cubit.tirarDados();
+      cubit.saltarTurno();
+
+      expect(cubit.state.eventosPuntuacion, isEmpty);
+      cubit.close();
+    });
+
+    test('el id de jugador del evento viene del ProveedorJugador inyectado', () {
+      final tablero = tableroVacio();
+      tablero[4][6] = 2;
+      tablero[5][6] = 2;
+      tablero[6][5] = 2;
+
+      final cubit = JuegoCubit(
+        tablero,
+        random: _DadosFijos([2, 2]),
+        jugador: const _JugadorDePrueba('jugador-test'),
+      );
+      cubit.tirarDados();
+      cubit.seleccionarDado(2);
+      cubit.tocarCasilla(const PosicionCasilla(6, 5));
+      cubit.tocarCasilla(const PosicionCasilla(5, 5));
+
+      expect(cubit.state.eventosPuntuacion.single.jugadorId, 'jugador-test');
       cubit.close();
     });
   });

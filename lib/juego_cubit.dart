@@ -2,10 +2,13 @@ import 'dart:math';
 
 import 'package:bloc/bloc.dart';
 
+import 'evento_puntuacion.dart';
 import 'evento_turno.dart';
+import 'jugador.dart';
 import 'movimiento_log.dart';
 import 'puntuacion.dart';
 import 'tablero_layout.dart';
+import 'zona_identidad.dart';
 import 'zonas_tablero.dart';
 
 /// Crea la grilla 7x7 con los 6 números iniciales en sus estrellas.
@@ -45,6 +48,12 @@ class JuegoEstado {
   /// confirma "Saltar turno" (ver [JuegoCubit.saltarTurno]).
   final List<EventoTurno> eventosTurno;
 
+  /// Historial de puntos obtenidos por completar zonas, en orden. Solo
+  /// crece cuando una colocación hace que una zona pase de incompleta a
+  /// completa (ver [JuegoCubit._colocar]); nunca al tirar, elegir ancla o
+  /// saltar el turno.
+  final List<EventoPuntuacion> eventosPuntuacion;
+
   const JuegoEstado({
     required this.tablero,
     this.dados,
@@ -52,6 +61,7 @@ class JuegoEstado {
     this.ancla,
     this.logs = const [],
     this.eventosTurno = const [],
+    this.eventosPuntuacion = const [],
   });
 
   int? valorEn(PosicionCasilla posicion) => tablero[posicion.fila][posicion.columna];
@@ -172,9 +182,11 @@ class JuegoEstado {
 
 class JuegoCubit extends Cubit<JuegoEstado> {
   final Random _random;
+  final ProveedorJugador _jugador;
 
-  JuegoCubit(List<List<int?>> tableroInicial, {Random? random})
+  JuegoCubit(List<List<int?>> tableroInicial, {Random? random, ProveedorJugador? jugador})
       : _random = random ?? Random(),
+        _jugador = jugador ?? const JugadorLocalUnico(),
         super(JuegoEstado(tablero: tableroInicial));
 
   /// No hace nada si la tirada actual ya tiene una jugada posible: hay que
@@ -188,6 +200,7 @@ class JuegoCubit extends Cubit<JuegoEstado> {
       dados: dados,
       logs: state.logs,
       eventosTurno: state.eventosTurno,
+      eventosPuntuacion: state.eventosPuntuacion,
     ));
   }
 
@@ -205,6 +218,7 @@ class JuegoCubit extends Cubit<JuegoEstado> {
       numeroAnclaElegido: valor,
       logs: state.logs,
       eventosTurno: state.eventosTurno,
+      eventosPuntuacion: state.eventosPuntuacion,
     ));
   }
 
@@ -226,6 +240,7 @@ class JuegoCubit extends Cubit<JuegoEstado> {
         ancla: posicion,
         logs: state.logs,
         eventosTurno: state.eventosTurno,
+        eventosPuntuacion: state.eventosPuntuacion,
       ));
     }
   }
@@ -240,11 +255,15 @@ class JuegoCubit extends Cubit<JuegoEstado> {
     final puntajeAntes = state.puntaje;
     final turno = state.turnoActual;
 
+    final zona = zonasNivel1.firstWhere((z) => z.casillas.contains(posicion));
+    final completaAntes = zona.casillas.every((c) => state.valorEn(c) != null);
+
     final nuevoTablero = [for (final fila in state.tablero) [...fila]];
     nuevoTablero[posicion.fila][posicion.columna] = numeroColocado;
 
-    final zona = zonasNivel1.firstWhere((z) => z.casillas.contains(posicion));
-    final puntajeDespues = JuegoEstado(tablero: nuevoTablero).puntaje;
+    final estadoConNuevoTablero = JuegoEstado(tablero: nuevoTablero);
+    final puntajeDespues = estadoConNuevoTablero.puntaje;
+    final completaDespues = zona.casillas.every((c) => estadoConNuevoTablero.valorEn(c) != null);
 
     final log = MovimientoLog(
       turno: turno,
@@ -258,10 +277,27 @@ class JuegoCubit extends Cubit<JuegoEstado> {
       puntajeDespues: puntajeDespues,
     );
 
+    // Las zonas de zonasNivel1 son disjuntas y cada colocación escribe una
+    // sola casilla, así que como mucho una zona (esta) pasa de incompleta
+    // a completa en esta jugada: nunca hace falta recorrer las demás ni
+    // puede haber más de un EventoPuntuacion por colocación.
+    final nuevosEventosPuntuacion = [...state.eventosPuntuacion];
+    if (!completaAntes && completaDespues) {
+      nuevosEventosPuntuacion.add(EventoPuntuacion(
+        turno: turno,
+        jugadorId: _jugador.jugadorActualId,
+        colorZona: zona.color,
+        zonaId: idDeZona(zona),
+        nombreZona: nombresZonaNivel1[idDeZona(zona)]!,
+        puntosObtenidos: puntosPorZonaCompleta[zona.color]!,
+      ));
+    }
+
     emit(JuegoEstado(
       tablero: nuevoTablero,
       logs: [...state.logs, log],
       eventosTurno: state.eventosTurno,
+      eventosPuntuacion: nuevosEventosPuntuacion,
     ));
   }
 
@@ -278,6 +314,7 @@ class JuegoCubit extends Cubit<JuegoEstado> {
       tablero: state.tablero,
       logs: state.logs,
       eventosTurno: [...state.eventosTurno, evento],
+      eventosPuntuacion: state.eventosPuntuacion,
     ));
   }
 }
