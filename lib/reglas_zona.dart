@@ -15,7 +15,7 @@ const List<ReglaZona> reglasDeZona = [
   ReglaZona(ColorZona.amarillo, 'Amarillo', 'Todos diferentes'),
   ReglaZona(ColorZona.verde, 'Verde', 'Cualquiera'),
   ReglaZona(ColorZona.morado, 'Morado', 'Solo dos'),
-  ReglaZona(ColorZona.azul, 'Azul', 'Todos diferentes'),
+  ReglaZona(ColorZona.azul, 'Azul', 'Todos iguales'),
   ReglaZona(ColorZona.rojo, 'Rojo', 'Todos diferentes'),
 ];
 
