@@ -63,6 +63,7 @@ void main() {
     test('el ancla debe tener uno de los dos números; se escribe el otro', () {
       final cubit = JuegoCubit(tableroInicial, random: _DadosFijos([1, 6]));
       cubit.tirarDados();
+      cubit.seleccionarDado(1);
       cubit.tocarCasilla(const PosicionCasilla(0, 2)); // tiene el 1
 
       expect(cubit.state.ancla, const PosicionCasilla(0, 2));
@@ -70,11 +71,12 @@ void main() {
       cubit.close();
     });
 
-    test('si el ancla no tiene ninguno de los dados no hay casillas válidas', () {
+    test('sin elegir un dado, tocar una casilla con número no la vuelve ancla', () {
       final cubit = JuegoCubit(tableroInicial, random: _DadosFijos([3, 5]));
       cubit.tirarDados();
-      cubit.tocarCasilla(const PosicionCasilla(0, 2)); // tiene el 1
+      cubit.tocarCasilla(const PosicionCasilla(0, 2)); // tiene el 1, pero no se eligió dado
 
+      expect(cubit.state.ancla, isNull);
       expect(cubit.state.numeroAColocar, isNull);
       expect(cubit.state.casillasValidas, isEmpty);
       cubit.close();
@@ -83,6 +85,7 @@ void main() {
     test('las casillas válidas son vecinas vacías que cumplen la regla de su zona', () {
       final cubit = JuegoCubit(tableroInicial, random: _DadosFijos([1, 6]));
       cubit.tirarDados();
+      cubit.seleccionarDado(1);
       cubit.tocarCasilla(const PosicionCasilla(0, 2));
 
       final validas = cubit.state.casillasValidas;
@@ -97,6 +100,7 @@ void main() {
     test('tocar una casilla válida escribe el número y gasta los dados', () {
       final cubit = JuegoCubit(tableroInicial, random: _DadosFijos([1, 6]));
       cubit.tirarDados();
+      cubit.seleccionarDado(1);
       cubit.tocarCasilla(const PosicionCasilla(0, 2));
       cubit.tocarCasilla(const PosicionCasilla(0, 1));
 
@@ -106,18 +110,20 @@ void main() {
       cubit.close();
     });
 
-    test('dados [3,5]: con ancla en el 3 el número a colocar es el 5', () {
+    test('dados [3,5]: eligiendo el dado 3, el número a colocar es el 5', () {
       final cubit = JuegoCubit(tableroInicial, random: _DadosFijos([3, 5]));
       cubit.tirarDados();
+      cubit.seleccionarDado(3);
       cubit.tocarCasilla(const PosicionCasilla(3, 1)); // estrella con el 3
 
       expect(cubit.state.numeroAColocar, 5);
       cubit.close();
     });
 
-    test('dados [3,5]: con ancla en el 5 el número a colocar es el 3', () {
+    test('dados [3,5]: eligiendo el dado 5, el número a colocar es el 3', () {
       final cubit = JuegoCubit(tableroInicial, random: _DadosFijos([3, 5]));
       cubit.tirarDados();
+      cubit.seleccionarDado(5);
       cubit.tocarCasilla(const PosicionCasilla(5, 2)); // estrella con el 5
 
       expect(cubit.state.numeroAColocar, 3);
@@ -127,10 +133,12 @@ void main() {
     test('una casilla ya ocupada deja de aparecer como válida', () {
       final cubit = JuegoCubit(tableroInicial, random: _DadosFijos([1, 6, 1, 6]));
       cubit.tirarDados();
+      cubit.seleccionarDado(1);
       cubit.tocarCasilla(const PosicionCasilla(0, 2)); // ancla con el 1
       cubit.tocarCasilla(const PosicionCasilla(0, 1)); // coloca el 6 acá
 
       cubit.tirarDados();
+      cubit.seleccionarDado(1);
       cubit.tocarCasilla(const PosicionCasilla(0, 2)); // mismo ancla otra vez
 
       expect(cubit.state.casillasValidas, isNot(contains(const PosicionCasilla(0, 1))));
@@ -395,6 +403,7 @@ void main() {
     test('una colocacion valida genera exactamente un log', () {
       final cubit = JuegoCubit(tableroInicial, random: _DadosFijos([1, 6]));
       cubit.tirarDados();
+      cubit.seleccionarDado(1);
       cubit.tocarCasilla(const PosicionCasilla(0, 2)); // ancla con el 1
       cubit.tocarCasilla(const PosicionCasilla(0, 1)); // coloca el 6
 
@@ -402,9 +411,10 @@ void main() {
       cubit.close();
     });
 
-    test('seleccionar un ancla sin colocar no genera log', () {
+    test('seleccionar un dado o un ancla sin colocar no genera log', () {
       final cubit = JuegoCubit(tableroInicial, random: _DadosFijos([1, 6]));
       cubit.tirarDados();
+      cubit.seleccionarDado(1);
       cubit.tocarCasilla(const PosicionCasilla(0, 2)); // solo selecciona el ancla
 
       expect(cubit.state.logs, isEmpty);
@@ -422,6 +432,7 @@ void main() {
     test('el log contiene los datos del movimiento y el puntaje antes/despues', () {
       final cubit = JuegoCubit(tableroInicial, random: _DadosFijos([1, 6]));
       cubit.tirarDados();
+      cubit.seleccionarDado(1);
       cubit.tocarCasilla(const PosicionCasilla(0, 2)); // ancla con el 1
       cubit.tocarCasilla(const PosicionCasilla(0, 1)); // coloca el 6 (zona verde)
 
@@ -441,16 +452,201 @@ void main() {
     test('dos colocaciones generan dos logs en orden, sin perder el anterior', () {
       final cubit = JuegoCubit(tableroInicial, random: _DadosFijos([1, 6, 2, 6]));
       cubit.tirarDados();
+      cubit.seleccionarDado(1);
       cubit.tocarCasilla(const PosicionCasilla(0, 2));
       cubit.tocarCasilla(const PosicionCasilla(0, 1)); // primera colocación
 
       cubit.tirarDados();
+      cubit.seleccionarDado(2);
       cubit.tocarCasilla(const PosicionCasilla(1, 5)); // estrella con el 2
       cubit.tocarCasilla(const PosicionCasilla(1, 4)); // coloca el 6
 
       expect(cubit.state.logs.length, 2);
       expect(cubit.state.logs[0].turno, 1);
       expect(cubit.state.logs[1].turno, 2);
+      cubit.close();
+    });
+  });
+
+  group('JuegoCubit.seleccionarDado y casillasAnclaPosibles', () {
+    test('seleccionar un dado no selecciona ninguna casilla automaticamente', () {
+      final cubit = JuegoCubit(tableroInicial, random: _DadosFijos([1, 6]));
+      cubit.tirarDados();
+      cubit.seleccionarDado(1);
+
+      expect(cubit.state.numeroAnclaElegido, 1);
+      expect(cubit.state.ancla, isNull);
+      cubit.close();
+    });
+
+    test('no se puede elegir un valor que no sea uno de los dos dados', () {
+      final cubit = JuegoCubit(tableroInicial, random: _DadosFijos([1, 6]));
+      cubit.tirarDados();
+      cubit.seleccionarDado(4); // ni 1 ni 6
+
+      expect(cubit.state.numeroAnclaElegido, isNull);
+      cubit.close();
+    });
+
+    test('casillasAnclaPosibles solo incluye casillas con el numero elegido y destino valido', () {
+      final estado = JuegoEstado(
+        tablero: tableroInicial,
+        dados: const [1, 6],
+        numeroAnclaElegido: 1,
+      );
+
+      // (0,2) es la única estrella con el 1 y tiene destinos válidos para el 6.
+      expect(estado.casillasAnclaPosibles, {const PosicionCasilla(0, 2)});
+    });
+
+    test('una casilla con el numero elegido pero sin destino valido no es ancla posible', () {
+      final tablero = [for (final fila in tableroInicial) [...fila]];
+      // Encierra la estrella (0,2)=1 con sus tres vecinas ocupadas.
+      tablero[1][2] = 9;
+      tablero[0][1] = 9;
+      tablero[0][3] = 9;
+
+      final estado = JuegoEstado(tablero: tablero, dados: const [1, 6], numeroAnclaElegido: 1);
+      expect(estado.casillasAnclaPosibles, isNot(contains(const PosicionCasilla(0, 2))));
+    });
+
+    test('tocar una casilla que no es una ancla posible no hace nada', () {
+      final cubit = JuegoCubit(tableroInicial, random: _DadosFijos([1, 6]));
+      cubit.tirarDados();
+      cubit.seleccionarDado(1);
+      cubit.tocarCasilla(const PosicionCasilla(5, 2)); // tiene el 5, no el 1
+
+      expect(cubit.state.ancla, isNull);
+      cubit.close();
+    });
+
+    test('elegir un dado distinto abandona el ancla ya seleccionada', () {
+      final cubit = JuegoCubit(tableroInicial, random: _DadosFijos([3, 5]));
+      cubit.tirarDados();
+      cubit.seleccionarDado(3);
+      cubit.tocarCasilla(const PosicionCasilla(3, 1)); // ancla con el 3
+      expect(cubit.state.ancla, isNotNull);
+
+      cubit.seleccionarDado(5); // cambia de opinión
+      expect(cubit.state.ancla, isNull);
+      expect(cubit.state.numeroAnclaElegido, 5);
+      cubit.close();
+    });
+  });
+
+  group('flujo completo: tirar, elegir dado, elegir ancla, colocar', () {
+    test('flujo directo: dado 1 como ancla, se coloca el 6', () {
+      final cubit = JuegoCubit(tableroInicial, random: _DadosFijos([1, 6]));
+      cubit.tirarDados();
+      cubit.seleccionarDado(1);
+      cubit.tocarCasilla(const PosicionCasilla(0, 2));
+      cubit.tocarCasilla(const PosicionCasilla(0, 1));
+
+      expect(cubit.state.valorEn(const PosicionCasilla(0, 1)), 6);
+      expect(cubit.state.logs.single.numeroColocado, 6);
+      expect(cubit.state.dados, isNull); // listo para el siguiente turno
+      cubit.close();
+    });
+
+    test('flujo inverso: dado 6 como ancla, se coloca el 1', () {
+      final cubit = JuegoCubit(tableroInicial, random: _DadosFijos([1, 6]));
+      cubit.tirarDados();
+      cubit.seleccionarDado(6);
+      cubit.tocarCasilla(const PosicionCasilla(6, 4)); // estrella con el 6
+      final destino = cubit.state.casillasValidas.first;
+      cubit.tocarCasilla(destino);
+
+      expect(cubit.state.valorEn(destino), 1);
+      expect(cubit.state.logs.single.numeroColocado, 1);
+      cubit.close();
+    });
+  });
+
+  group('JuegoCubit.saltarTurno', () {
+    test('se puede saltar el turno aunque exista una jugada valida', () {
+      final cubit = JuegoCubit(tableroInicial, random: _DadosFijos([3, 5]));
+      cubit.tirarDados();
+      expect(cubit.state.puedeVolverATirar, isFalse); // hay jugada
+
+      cubit.saltarTurno();
+
+      expect(cubit.state.eventosTurno.length, 1);
+      cubit.close();
+    });
+
+    test('saltar turno limpia dados, dado elegido, ancla y resaltados', () {
+      final cubit = JuegoCubit(tableroInicial, random: _DadosFijos([1, 6]));
+      cubit.tirarDados();
+      cubit.seleccionarDado(1);
+      cubit.tocarCasilla(const PosicionCasilla(0, 2));
+
+      cubit.saltarTurno();
+
+      expect(cubit.state.dados, isNull);
+      expect(cubit.state.numeroAnclaElegido, isNull);
+      expect(cubit.state.ancla, isNull);
+      expect(cubit.state.casillasAnclaPosibles, isEmpty);
+      cubit.close();
+    });
+
+    test('despues de saltar se puede tirar de nuevo, sin quedar bloqueado', () {
+      final cubit = JuegoCubit(tableroInicial, random: _DadosFijos([3, 5, 1, 2]));
+      cubit.tirarDados(); // [3,5], hay jugada
+      cubit.saltarTurno();
+
+      expect(cubit.state.puedeVolverATirar, isTrue);
+      cubit.tirarDados(); // [1,2]
+
+      expect(cubit.state.dados, [1, 2]);
+      cubit.close();
+    });
+
+    test('saltar turno no modifica el puntaje ni coloca ningun numero', () {
+      final cubit = JuegoCubit(tableroInicial, random: _DadosFijos([3, 5]));
+      final tableroAntes = cubit.state.tablero;
+      final puntajeAntes = cubit.state.puntaje;
+
+      cubit.tirarDados();
+      cubit.saltarTurno();
+
+      expect(cubit.state.puntaje, puntajeAntes);
+      expect(cubit.state.tablero, tableroAntes);
+      cubit.close();
+    });
+
+    test('saltar turno no genera un MovimientoLog de colocacion', () {
+      final cubit = JuegoCubit(tableroInicial, random: _DadosFijos([3, 5]));
+      cubit.tirarDados();
+      cubit.saltarTurno();
+
+      expect(cubit.state.logs, isEmpty);
+      cubit.close();
+    });
+
+    test('el evento de turno registra el numero de turno y los dados', () {
+      final cubit = JuegoCubit(tableroInicial, random: _DadosFijos([3, 5]));
+      cubit.tirarDados();
+      cubit.saltarTurno();
+
+      final evento = cubit.state.eventosTurno.single;
+      expect(evento.turno, 1);
+      expect(evento.dados, [3, 5]);
+      cubit.close();
+    });
+
+    test('turnoActual cuenta colocaciones y saltos en una sola numeracion', () {
+      final cubit = JuegoCubit(tableroInicial, random: _DadosFijos([3, 5, 1, 6]));
+      cubit.tirarDados();
+      cubit.saltarTurno(); // turno 1: salto
+
+      cubit.tirarDados();
+      cubit.seleccionarDado(1);
+      cubit.tocarCasilla(const PosicionCasilla(0, 2));
+      cubit.tocarCasilla(const PosicionCasilla(0, 1)); // turno 2: colocación
+
+      expect(cubit.state.eventosTurno.single.turno, 1);
+      expect(cubit.state.logs.single.turno, 2);
+      expect(cubit.state.turnoActual, 3);
       cubit.close();
     });
   });
