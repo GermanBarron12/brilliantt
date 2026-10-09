@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'dado_widget.dart';
 import 'juego_cubit.dart';
+import 'notificacion_puntuacion.dart';
 import 'reglas_zona_panel.dart';
 import 'tablero_layout.dart';
 import 'tablero_widget.dart';
@@ -10,14 +11,33 @@ import 'tablero_widget.dart';
 /// Pantalla de la partida: se tiran los dados, se elige con cuál se va a
 /// anclar, se elige el ancla y se escribe el otro número en una casilla
 /// iluminada. También se puede saltar el turno en cualquier momento.
-class JuegoScreen extends StatelessWidget {
+class JuegoScreen extends StatefulWidget {
   const JuegoScreen({super.key});
+
+  @override
+  State<JuegoScreen> createState() => _JuegoScreenState();
+}
+
+class _JuegoScreenState extends State<JuegoScreen> {
+  // Cuántos EventoPuntuacion ya se mostraron como notificación. Vive acá
+  // (y no en el builder) para no volver a mostrar un aviso viejo en una
+  // reconstrucción normal de la pantalla, y para poder recorrer todos los
+  // eventos nuevos en orden si alguna vez hubiera más de uno pendiente.
+  int _eventosPuntuacionMostrados = 0;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Brilliant · Partida')),
-      body: BlocBuilder<JuegoCubit, JuegoEstado>(
+      body: BlocConsumer<JuegoCubit, JuegoEstado>(
+        listenWhen: (previo, actual) =>
+            actual.eventosPuntuacion.length != previo.eventosPuntuacion.length,
+        listener: (context, estado) {
+          for (var i = _eventosPuntuacionMostrados; i < estado.eventosPuntuacion.length; i++) {
+            mostrarNotificacionPuntuacion(context, estado.eventosPuntuacion[i]);
+          }
+          _eventosPuntuacionMostrados = estado.eventosPuntuacion.length;
+        },
         builder: (context, estado) {
           final cubit = context.read<JuegoCubit>();
 

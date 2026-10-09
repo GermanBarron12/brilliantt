@@ -116,4 +116,85 @@ void main() {
     await tester.pump();
     expect(find.textContaining('Dados: 1 y 2'), findsOneWidget);
   });
+
+  testWidgets('completar una zona muestra el aviso de puntuacion y luego desaparece', (
+    tester,
+  ) async {
+    final tablero = List.generate(7, (_) => List<int?>.filled(7, null));
+    tablero[4][6] = 2;
+    tablero[5][6] = 2;
+    tablero[6][5] = 2; // ancla; (5,5) queda como ultimo cupo de la zona azul
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: BlocProvider(
+          create: (_) => JuegoCubit(tablero, random: _DadosFijos([2, 2])),
+          child: const JuegoScreen(),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Tirar dados'));
+    await tester.pump();
+    await tester.tap(find.byType(DadoWidget).first);
+    await tester.pump();
+
+    const offsetDados = 2;
+    await tester.tap(find.byType(GestureDetector).at(offsetDados + 6 * 7 + 5)); // (6,5) ancla
+    await tester.pump();
+    await tester.tap(find.byType(GestureDetector).at(offsetDados + 5 * 7 + 5)); // (5,5) destino
+    await tester.pump();
+
+    expect(find.text('+7 puntos'), findsOneWidget);
+    expect(find.text('Zona Azul inferior derecha completada'), findsOneWidget);
+
+    // Deja pasar la duración del aviso en pasos (un pump único no alcanza
+    // para que el SnackBar complete su temporizador y su animación de
+    // salida).
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(seconds: 1));
+    }
+    expect(find.text('+7 puntos'), findsNothing);
+  });
+
+  testWidgets('una reconstruccion sin eventos nuevos no vuelve a mostrar el aviso', (
+    tester,
+  ) async {
+    final tablero = List.generate(7, (_) => List<int?>.filled(7, null));
+    tablero[4][6] = 2;
+    tablero[5][6] = 2;
+    tablero[6][5] = 2;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: BlocProvider(
+          create: (_) => JuegoCubit(tablero, random: _DadosFijos([2, 2, 1, 3])),
+          child: const JuegoScreen(),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Tirar dados'));
+    await tester.pump();
+    await tester.tap(find.byType(DadoWidget).first);
+    await tester.pump();
+
+    const offsetDados = 2;
+    await tester.tap(find.byType(GestureDetector).at(offsetDados + 6 * 7 + 5));
+    await tester.pump();
+    await tester.tap(find.byType(GestureDetector).at(offsetDados + 5 * 7 + 5));
+    await tester.pump();
+
+    // El aviso ya se mostró y se deja pasar su duración.
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(seconds: 1));
+    }
+    expect(find.text('+7 puntos'), findsNothing);
+
+    // Una reconstrucción normal (otra tirada, sin completar ninguna zona
+    // nueva) no debe volver a traer el aviso anterior.
+    await tester.tap(find.text('Tirar dados'));
+    await tester.pump();
+    expect(find.text('+7 puntos'), findsNothing);
+  });
 }
