@@ -5,140 +5,160 @@ void main() {
   group('TipoRojo', () {
     const tipo = TipoRojo();
 
-    test('color es el esperado', () {
-      expect(tipo.color.toARGB32(), 0xFFF44336);
+    group('TipoRojo: propiedades y puntuación', () {
+      test('color es el esperado', () {
+        expect(tipo.color.toARGB32(), 0xFFF44336);
+      });
+
+      test('descripcion es la esperada', () {
+        expect(tipo.descripcion, 'Todos los números deben de ser distintos');
+      });
+
+      test('puntuaciones son las esperadas', () {
+        expect(tipo.puntuaciones, {1: 8, 2: 6, 3: 4});
+      });
     });
 
-    test('descripcion es la esperada', () {
-      expect(tipo.descripcion, 'Todos los números deben de ser distintos');
-    });
+    group('TipoRojo: validación de números', () {
+      test('permite agregar un número que no está en la zona', () {
+        expect(tipo.esPosibleAgregar([1, 2], 3), isTrue);
+      });
 
-    test('puntuaciones son las esperadas', () {
-      expect(tipo.puntuaciones, {1: 8, 2: 6, 3: 4});
-    });
+      test('permite agregar en una zona vacía', () {
+        expect(tipo.esPosibleAgregar([], 1), isTrue);
+      });
 
-    test('permite agregar un número que no está en la zona', () {
-      expect(tipo.esPosibleAgregar([1, 2], 3), isTrue);
-    });
-
-    test('permite agregar en una zona vacía', () {
-      expect(tipo.esPosibleAgregar([], 1), isTrue);
-    });
-
-    test('no permite agregar un número repetido', () {
-      expect(tipo.esPosibleAgregar([1, 2], 2), isFalse);
+      test('no permite agregar un número repetido', () {
+        expect(tipo.esPosibleAgregar([1, 2], 2), isFalse);
+      });
     });
   });
 
   group('TipoAmarillo', () {
     const tipo = TipoAmarillo();
 
-    test('color es el esperado', () {
-      expect(tipo.color.toARGB32(), 0xFFFFC107);
+    group('TipoAmarillo: propiedades y puntuación', () {
+      test('color es el esperado', () {
+        expect(tipo.color.toARGB32(), 0xFFFFC107);
+      });
+
+      test('descripcion es la esperada', () {
+        expect(tipo.descripcion, 'Todos los números deben de ser distintos');
+      });
+
+      test('puntuaciones son las esperadas', () {
+        expect(tipo.puntuaciones, {1: 8, 2: 6, 3: 4});
+      });
     });
 
-    test('descripcion es la esperada', () {
-      expect(tipo.descripcion, 'Todos los números deben de ser distintos');
-    });
+    group('TipoAmarillo: validación de números', () {
+      test('permite agregar un número que no está en la zona', () {
+        expect(tipo.esPosibleAgregar([1, 2], 3), isTrue);
+      });
 
-    test('puntuaciones son las esperadas', () {
-      expect(tipo.puntuaciones, {1: 8, 2: 6, 3: 4});
-    });
+      test('permite agregar en una zona vacía', () {
+        expect(tipo.esPosibleAgregar([], 1), isTrue);
+      });
 
-    test('permite agregar un número que no está en la zona', () {
-      expect(tipo.esPosibleAgregar([1, 2], 3), isTrue);
-    });
-
-    test('permite agregar en una zona vacía', () {
-      expect(tipo.esPosibleAgregar([], 1), isTrue);
-    });
-
-    test('no permite agregar un número repetido', () {
-      expect(tipo.esPosibleAgregar([1, 2], 2), isFalse);
+      test('no permite agregar un número repetido', () {
+        expect(tipo.esPosibleAgregar([1, 2], 2), isFalse);
+      });
     });
   });
 
   group('TipoVerde', () {
     const tipo = TipoVerde();
 
-    test('color es el esperado', () {
-      expect(tipo.color.toARGB32(), 0xFF4CAF50);
+    group('TipoVerde: propiedades y puntuación', () {
+      test('color es el esperado', () {
+        expect(tipo.color.toARGB32(), 0xFF4CAF50);
+      });
+
+      test('descripcion es la esperada', () {
+        expect(tipo.descripcion, 'Se puede colocar cualquier número');
+      });
+
+      test('puntuaciones son las esperadas', () {
+        expect(tipo.puntuaciones, {1: 4, 2: 3, 3: 2});
+      });
     });
 
-    test('descripcion es la esperada', () {
-      expect(tipo.descripcion, 'Se puede colocar cualquier número');
-    });
+    group('TipoVerde: aceptación de números', () {
+      test('permite agregar cualquier número en zona vacía', () {
+        expect(tipo.esPosibleAgregar([], 1), isTrue);
+      });
 
-    test('puntuaciones son las esperadas', () {
-      expect(tipo.puntuaciones, {1: 4, 2: 3, 3: 2});
-    });
-
-    test('permite agregar cualquier número en zona vacía', () {
-      expect(tipo.esPosibleAgregar([], 1), isTrue);
-    });
-
-    test('permite agregar un número repetido', () {
-      expect(tipo.esPosibleAgregar([1, 1, 2], 1), isTrue);
+      test('permite agregar un número repetido', () {
+        expect(tipo.esPosibleAgregar([1, 1, 2], 1), isTrue);
+      });
     });
   });
 
   group('TipoAzul', () {
     const tipo = TipoAzul();
 
-    test('color es el esperado', () {
-      expect(tipo.color.toARGB32(), 0xFF2196F3);
+    group('TipoAzul: propiedades y puntuación', () {
+      test('color es el esperado', () {
+        expect(tipo.color.toARGB32(), 0xFF2196F3);
+      });
+
+      test('descripcion es la esperada', () {
+        expect(tipo.descripcion, 'Todos los números deben de ser iguales');
+      });
+
+      test('puntuaciones son las esperadas', () {
+        expect(tipo.puntuaciones, {1: 10, 2: 8, 3: 6});
+      });
     });
 
-    test('descripcion es la esperada', () {
-      expect(tipo.descripcion, 'Todos los números deben de ser iguales');
-    });
+    group('TipoAzul: validación de números', () {
+      test('permite agregar en una zona vacía', () {
+        expect(tipo.esPosibleAgregar([], 3), isTrue);
+      });
 
-    test('puntuaciones son las esperadas', () {
-      expect(tipo.puntuaciones, {1: 10, 2: 8, 3: 6});
-    });
+      test('permite agregar un número igual a los ya colocados', () {
+        expect(tipo.esPosibleAgregar([2, 2], 2), isTrue);
+      });
 
-    test('permite agregar en una zona vacía', () {
-      expect(tipo.esPosibleAgregar([], 3), isTrue);
-    });
-
-    test('permite agregar un número igual a los ya colocados', () {
-      expect(tipo.esPosibleAgregar([2, 2], 2), isTrue);
-    });
-
-    test('no permite agregar un número distinto a los ya colocados', () {
-      expect(tipo.esPosibleAgregar([2, 2], 3), isFalse);
+      test('no permite agregar un número distinto a los ya colocados', () {
+        expect(tipo.esPosibleAgregar([2, 2], 3), isFalse);
+      });
     });
   });
 
   group('TipoMorado', () {
     const tipo = TipoMorado();
 
-    test('color es el esperado', () {
-      expect(tipo.color.toARGB32(), 0xFF9C27B0);
+    group('TipoMorado: propiedades y puntuación', () {
+      test('color es el esperado', () {
+        expect(tipo.color.toARGB32(), 0xFF9C27B0);
+      });
+
+      test('descripcion es la esperada', () {
+        expect(tipo.descripcion, 'Máximo dos números diferentes por zona');
+      });
+
+      test('puntuaciones son las esperadas', () {
+        expect(tipo.puntuaciones, {1: 8, 2: 6, 3: 4});
+      });
     });
 
-    test('descripcion es la esperada', () {
-      expect(tipo.descripcion, 'Máximo dos números diferentes por zona');
-    });
+    group('TipoMorado: aceptación, repetición y rechazo de números', () {
+      test('permite agregar en una zona vacía', () {
+        expect(tipo.esPosibleAgregar([], 1), isTrue);
+      });
 
-    test('puntuaciones son las esperadas', () {
-      expect(tipo.puntuaciones, {1: 8, 2: 6, 3: 4});
-    });
+      test('permite agregar un segundo número distinto', () {
+        expect(tipo.esPosibleAgregar([1, 1], 2), isTrue);
+      });
 
-    test('permite agregar en una zona vacía', () {
-      expect(tipo.esPosibleAgregar([], 1), isTrue);
-    });
+      test('permite repetir uno de los dos números ya presentes', () {
+        expect(tipo.esPosibleAgregar([1, 2], 1), isTrue);
+      });
 
-    test('permite agregar un segundo número distinto', () {
-      expect(tipo.esPosibleAgregar([1, 1], 2), isTrue);
-    });
-
-    test('permite repetir uno de los dos números ya presentes', () {
-      expect(tipo.esPosibleAgregar([1, 2], 1), isTrue);
-    });
-
-    test('no permite agregar un tercer número distinto', () {
-      expect(tipo.esPosibleAgregar([1, 2], 3), isFalse);
+      test('no permite agregar un tercer número distinto', () {
+        expect(tipo.esPosibleAgregar([1, 2], 3), isFalse);
+      });
     });
   });
 
