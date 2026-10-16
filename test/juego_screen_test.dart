@@ -39,6 +39,35 @@ Widget _pantallaDePrueba(List<int> secuenciaDeDados) {
 
 void main() {
   group('JuegoScreen', () {
+    group('estado inicial de la pantalla', () {
+      testWidgets('antes de tirar los dados, no se ve ningun dado', (tester) async {
+        await tester.pumpWidget(_pantallaDePrueba([1, 6]));
+
+        expect(find.text('Tira los dados para empezar.'), findsOneWidget);
+        expect(find.byType(DadoWidget), findsNothing);
+      });
+    });
+
+    group('adaptación a pantallas chicas', () {
+      testWidgets('no genera overflow en un ancho reducido', (tester) async {
+        tester.view.physicalSize = const Size(320, 800);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        await tester.pumpWidget(_pantallaDePrueba([1, 6]));
+
+        // Tirar los dados agrega los DadoWidget reales al árbol, además del
+        // tablero, el panel de reglas y los botones que ya están desde el
+        // principio: así se ejercita la pantalla completa, no solo su
+        // estado inicial.
+        await tester.tap(find.text('Tirar dados'));
+        await tester.pump();
+
+        expect(tester.takeException(), isNull);
+      });
+    });
+
     group('flujos completos de un turno (colocar o saltar)', () {
       testWidgets('tirar, elegir un dado, elegir ancla y colocar', (tester) async {
         await tester.pumpWidget(_pantallaDePrueba([1, 6]));
