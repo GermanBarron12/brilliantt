@@ -42,6 +42,7 @@ void main() {
 
       expect(find.text('Los números no pueden repetirse.'), findsOneWidget);
       expect(botonInicio(tester).onPressed, isNull);
+      expect(find.byIcon(Icons.warning_rounded), findsWidgets);
     });
 
     testWidgets('Inicio abre la partida con los 6 números colocados', (tester) async {
