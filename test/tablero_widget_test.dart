@@ -153,5 +153,37 @@ void main() {
       expect(find.byIcon(Icons.warning_rounded), findsOneWidget);
       expect(borde.top.width, 4);
     });
+
+    testWidgets('la casilla seleccionada tiene borde propio', (tester) async {
+      final valores = List.generate(7, (_) => List<int?>.filled(7, null));
+      const seleccionada = PosicionCasilla(0, 0);
+      const vecinaSinSeleccionar = PosicionCasilla(0, 1);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: TableroWidget(
+              valores: valores,
+              estrellas: const {},
+              resaltadas: const {},
+              repetidas: const {},
+              seleccionada: seleccionada,
+              onTap: (_) {},
+            ),
+          ),
+        ),
+      );
+
+      Border? bordeEnCasilla(int fila, int columna) {
+        final gestureDetector = find.byType(GestureDetector).at(fila * 7 + columna);
+        final container = tester.widget<Container>(
+          find.descendant(of: gestureDetector, matching: find.byType(Container)),
+        );
+        return (container.decoration as BoxDecoration).border as Border?;
+      }
+
+      expect(bordeEnCasilla(seleccionada.fila, seleccionada.columna)!.top.width, 3);
+      expect(bordeEnCasilla(vecinaSinSeleccionar.fila, vecinaSinSeleccionar.columna), isNull);
+    });
   });
 }
