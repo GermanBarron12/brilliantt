@@ -97,6 +97,13 @@ void main() {
         expect(find.textContaining('Tira los dados'), findsOneWidget);
         // Un 6 ya estaba como número inicial en (6,4); el nuevo es el segundo.
         expect(find.text('6'), findsNWidgets(2));
+
+        // Y, específicamente, el 6 nuevo quedó en la casilla destino exacta.
+        // Tras colocar, los dados vuelven a su estado vacío (sin
+        // GestureDetector propio), así que el tablero ya no tiene el
+        // offsetDados: su primer GestureDetector vuelve a ser el índice 0.
+        final casillaDestino = find.byType(GestureDetector).at(0 * 7 + 1);
+        expect(find.descendant(of: casillaDestino, matching: find.text('6')), findsOneWidget);
       });
 
       testWidgets('elegir el otro dado ancla con el número contrario', (tester) async {
@@ -148,6 +155,32 @@ void main() {
         await tester.tap(find.text('Tirar dados'));
         await tester.pump();
         expect(find.textContaining('Dados: 1 y 2'), findsOneWidget);
+      });
+
+      testWidgets('saltar turno sin jugada disponible muestra el mensaje alternativo', (
+        tester,
+      ) async {
+        // Tablero vacío: ningún valor de los dados existe en el tablero,
+        // así que no hay ninguna jugada posible tras tirar.
+        final tableroVacio = List.generate(7, (_) => List<int?>.filled(7, null));
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: BlocProvider(
+              create: (_) => JuegoCubit(tableroVacio, random: _DadosFijos([1, 2])),
+              child: const JuegoScreen(),
+            ),
+          ),
+        );
+
+        await tester.tap(find.text('Tirar dados'));
+        await tester.pump();
+
+        await tester.tap(find.text('Saltar turno'));
+        await tester.pumpAndSettle();
+
+        expect(find.textContaining('¿Quieres saltar el turno?'), findsOneWidget);
+        expect(find.textContaining('Tienes una jugada disponible'), findsNothing);
       });
     });
 
