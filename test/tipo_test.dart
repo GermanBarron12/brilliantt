@@ -162,6 +162,83 @@ void main() {
     });
   });
 
+  group('TipoBlanco', () {
+    const tipo = TipoBlanco();
+
+    group('TipoBlanco: propiedades', () {
+      test('descripcion es la esperada', () {
+        expect(tipo.descripcion, 'Todos los números deben de ser iguales');
+      });
+    });
+
+    group('TipoBlanco: validación de números', () {
+      test('permite agregar en una zona vacía', () {
+        expect(tipo.esPosibleAgregar([], 3), isTrue);
+      });
+
+      test('permite agregar un número igual a los ya colocados', () {
+        expect(tipo.esPosibleAgregar([2, 2], 2), isTrue);
+      });
+
+      test('no permite agregar un número distinto a los ya colocados', () {
+        expect(tipo.esPosibleAgregar([2, 2], 3), isFalse);
+      });
+    });
+  });
+
+  group('TipoNaranjaSuperior', () {
+    const tipo = TipoNaranjaSuperior();
+
+    group('TipoNaranjaSuperior: propiedades', () {
+      test('descripcion es la esperada', () {
+        expect(tipo.descripcion, 'Solo números del 4 al 6');
+      });
+    });
+
+    group('TipoNaranjaSuperior: validación de números', () {
+      test('permite agregar 4, 5 o 6 en una zona vacía', () {
+        expect(tipo.esPosibleAgregar([], 4), isTrue);
+        expect(tipo.esPosibleAgregar([], 5), isTrue);
+        expect(tipo.esPosibleAgregar([], 6), isTrue);
+      });
+
+      test('no permite agregar 1, 2 o 3', () {
+        expect(tipo.esPosibleAgregar([], 1), isFalse);
+        expect(tipo.esPosibleAgregar([], 2), isFalse);
+        expect(tipo.esPosibleAgregar([], 3), isFalse);
+      });
+
+      test('no depende de los valores ya colocados, solo del rango', () {
+        expect(tipo.esPosibleAgregar([4, 5], 6), isTrue);
+        expect(tipo.esPosibleAgregar([4, 5], 1), isFalse);
+      });
+    });
+  });
+
+  group('TipoNaranjaInferior', () {
+    const tipo = TipoNaranjaInferior();
+
+    group('TipoNaranjaInferior: propiedades', () {
+      test('descripcion es la esperada', () {
+        expect(tipo.descripcion, 'Solo números del 1 al 3');
+      });
+    });
+
+    group('TipoNaranjaInferior: validación de números', () {
+      test('permite agregar 1, 2 o 3 en una zona vacía', () {
+        expect(tipo.esPosibleAgregar([], 1), isTrue);
+        expect(tipo.esPosibleAgregar([], 2), isTrue);
+        expect(tipo.esPosibleAgregar([], 3), isTrue);
+      });
+
+      test('no permite agregar 4, 5 o 6', () {
+        expect(tipo.esPosibleAgregar([], 4), isFalse);
+        expect(tipo.esPosibleAgregar([], 5), isFalse);
+        expect(tipo.esPosibleAgregar([], 6), isFalse);
+      });
+    });
+  });
+
   group('Tipo (instancias estáticas)', () {
     test('Tipo.rojo es un TipoRojo', () {
       expect(Tipo.rojo, isA<TipoRojo>());
@@ -181,6 +258,10 @@ void main() {
 
     test('Tipo.morado es un TipoMorado', () {
       expect(Tipo.morado, isA<TipoMorado>());
+    });
+
+    test('Tipo.blanco es un TipoBlanco', () {
+      expect(Tipo.blanco, isA<TipoBlanco>());
     });
   });
 }
