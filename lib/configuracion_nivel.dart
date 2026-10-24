@@ -98,7 +98,42 @@ class ConfiguracionNivel {
       tipoEncontrado = tipo;
     }
     if (tipoEncontrado == null) return zona;
+    _validarCompatibilidad(zona.color, tipoEncontrado);
     return ZonaTablero(zona.color, zona.casillas, tipoEncontrado);
+  }
+
+  /// Valida que un Tipo explícito no se haya asignado por error a una zona
+  /// de un color que no corresponde (por ejemplo, un `TipoNaranjaSuperior`
+  /// puesto por accidente en una zona roja).
+  ///
+  /// Solo puede validarse esto para los colores que ya tienen un único
+  /// Tipo "correcto" por defecto, es decir, todos salvo naranja
+  /// ([tipoDeColor] lanza [UnsupportedError] justamente para naranja, que
+  /// no tiene un Tipo único por color). Para esos colores, cualquier Tipo
+  /// explícito que no sea exactamente ese Tipo por defecto se rechaza.
+  ///
+  /// Limitación conocida, documentada en vez de forzar una regla frágil:
+  /// para una zona naranja no existe ningún Tipo de referencia contra el
+  /// que comparar (es justamente el color que necesita Tipos explícitos
+  /// distintos entre zonas), así que esta validación no puede detectar un
+  /// Tipo incompatible asignado a una zona naranja (p. ej. un
+  /// `TipoAzul` puesto por error ahí no se rechaza acá).
+  void _validarCompatibilidad(ColorZona color, Tipo tipoExplicito) {
+    Tipo tipoPorDefecto;
+    try {
+      tipoPorDefecto = tipoDeColor(color);
+    } on UnsupportedError {
+      return;
+    }
+    if (tipoExplicito.runtimeType != tipoPorDefecto.runtimeType) {
+      throw ArgumentError(
+        'En "$nombre", una zona de color ${color.name} recibió el Tipo '
+        'explícito ${tipoExplicito.runtimeType}, distinto del Tipo que le '
+        'corresponde a ese color (${tipoPorDefecto.runtimeType}). Esto suele '
+        'ser un error de configuración, como asignar un Tipo naranja a una '
+        'zona que no es naranja.',
+      );
+    }
   }
 }
 

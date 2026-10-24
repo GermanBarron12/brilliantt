@@ -1,6 +1,7 @@
 import 'package:test/test.dart';
 
 import 'package:brilliant/configuracion_nivel.dart';
+import 'package:brilliant/niveles_oficiales.dart';
 import 'package:brilliant/tablero_layout.dart';
 import 'package:brilliant/tipo.dart';
 import 'package:brilliant/zona_identidad.dart';
@@ -159,5 +160,63 @@ void main() {
         expect(zona.tipo, tipoDeColor(zona.color));
       }
     });
+  });
+
+  group('ConfiguracionNivel: validación acotada de Tipo explícito incompatible con el color', () {
+    test('asignar un Tipo naranja a una zona que no es naranja lanza un error', () {
+      final nivel = ConfiguracionNivel(
+        id: 92,
+        nombre: 'Nivel de prueba (naranja en zona roja)',
+        layout: const [
+          [ColorZona.rojo, ColorZona.rojo],
+        ],
+        casillasEstrella: const [],
+        tiposExplicitosPorCasilla: {
+          PosicionCasilla(0, 0): TipoNaranjaSuperior(), // la zona es roja, no naranja
+        },
+      );
+
+      expect(() => nivel.zonas, throwsArgumentError);
+    });
+
+    test('un Tipo explícito que coincide exactamente con el Tipo por defecto del color se acepta', () {
+      final nivel = ConfiguracionNivel(
+        id: 91,
+        nombre: 'Nivel de prueba (Tipo explícito redundante pero correcto)',
+        layout: const [
+          [ColorZona.rojo, ColorZona.rojo],
+        ],
+        casillasEstrella: const [],
+        tiposExplicitosPorCasilla: {
+          PosicionCasilla(0, 0): TipoRojo(), // mismo Tipo que ya le tocaría por defecto
+        },
+      );
+
+      expect(nivel.zonas.single.tipo, isA<TipoRojo>());
+    });
+
+    test('las dos zonas naranjas legítimas del nivel 4 siguen aceptándose (caso real, no sintético)', () {
+      expect(() => configuracionNivel4.zonas, returnsNormally);
+    });
+
+    test(
+      'limitación documentada: un Tipo incompatible asignado a una zona NARANJA no se detecta '
+      '(no existe un Tipo de referencia único para naranja contra el cual comparar)',
+      () {
+        final nivel = ConfiguracionNivel(
+          id: 90,
+          nombre: 'Nivel de prueba (azul puesto por error en zona naranja)',
+          layout: const [
+            [ColorZona.naranja, ColorZona.naranja],
+          ],
+          casillasEstrella: const [],
+          tiposExplicitosPorCasilla: {
+            PosicionCasilla(0, 0): TipoAzul(), // incompatible, pero no se puede detectar de forma general
+          },
+        );
+
+        expect(nivel.zonas.single.tipo, isA<TipoAzul>());
+      },
+    );
   });
 }
