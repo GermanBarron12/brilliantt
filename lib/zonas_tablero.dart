@@ -85,20 +85,23 @@ List<ZonaTablero> calcularZonas(List<List<ColorZona>> matriz) {
 /// sola zona para la regla "todos diferentes" y para el puntaje.
 const Set<ColorZona> coloresDeZonaUnica = {ColorZona.amarillo};
 
-/// Fusiona, para cada color en [coloresDeZonaUnica], todas sus zonas en una
-/// sola (uniendo sus casillas). Las zonas de los demás colores quedan igual
-/// que las devolvió el flood fill de [calcularZonas].
-List<ZonaTablero> _fusionarZonasUnicas(List<ZonaTablero> zonas) {
+/// Fusiona, para cada color en [coloresUnicos], todas sus zonas en una sola
+/// (uniendo sus casillas). Las zonas de los demás colores quedan igual que
+/// las devolvió el flood fill de [calcularZonas]. Es genérica (no asume
+/// nivel 1): cada [ConfiguracionNivel] le pasa su propio set de colores de
+/// zona única, que puede ser distinto o vacío en otros niveles.
+List<ZonaTablero> fusionarZonasUnicas(List<ZonaTablero> zonas, Set<ColorZona> coloresUnicos) {
   final fusionadas = <ZonaTablero>[];
 
-  for (final color in coloresDeZonaUnica) {
+  for (final color in coloresUnicos) {
     final partes = zonas.where((z) => z.color == color);
     if (partes.isEmpty) continue;
     fusionadas.add(ZonaTablero(color, [for (final zona in partes) ...zona.casillas]));
   }
 
-  fusionadas.addAll(zonas.where((z) => !coloresDeZonaUnica.contains(z.color)));
+  fusionadas.addAll(zonas.where((z) => !coloresUnicos.contains(z.color)));
   return fusionadas;
 }
 
-final List<ZonaTablero> zonasNivel1 = _fusionarZonasUnicas(calcularZonas(layoutTableroNivel1));
+final List<ZonaTablero> zonasNivel1 =
+    fusionarZonasUnicas(calcularZonas(layoutTableroNivel1), coloresDeZonaUnica);
