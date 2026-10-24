@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
-/// Los colores de zona que existen en el tablero de Brilliant.
-enum ColorZona { rojo, amarillo, verde, azul, morado }
+/// Los colores de zona que existen en el tablero de Brilliant. Blanco y
+/// naranja solo aparecen en los niveles 2/3 y 4 respectivamente (nivel 1
+/// no los usa).
+enum ColorZona { rojo, amarillo, verde, azul, morado, blanco, naranja }
 
 /// El color de Flutter que corresponde a cada [ColorZona].
 const Map<ColorZona, Color> coloresDeZona = {
@@ -10,6 +12,8 @@ const Map<ColorZona, Color> coloresDeZona = {
   ColorZona.verde: Colors.green,
   ColorZona.azul: Colors.lightBlue,
   ColorZona.morado: Colors.deepPurple,
+  ColorZona.blanco: Color(0xFFF5F5F5),
+  ColorZona.naranja: Colors.orange,
 };
 
 /// La posición de una casilla dentro de la grilla del tablero.
