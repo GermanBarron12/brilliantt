@@ -1,6 +1,7 @@
 import 'package:test/test.dart';
 
 import 'package:brilliant/tablero_layout.dart';
+import 'package:brilliant/tipo.dart';
 import 'package:brilliant/zonas_tablero.dart';
 
 void main() {
@@ -96,6 +97,59 @@ void main() {
         expect(todasLasCasillas.length, 49);
         expect(todasLasCasillas.toSet().length, 49); // sin duplicados
       });
+    });
+  });
+
+  group('tipoDeColor', () {
+    test('blanco usa Tipo.blanco por defecto', () {
+      expect(tipoDeColor(ColorZona.blanco), Tipo.blanco);
+    });
+
+    test('naranja no tiene un Tipo único por color: lanza un error', () {
+      expect(() => tipoDeColor(ColorZona.naranja), throwsUnsupportedError);
+    });
+  });
+
+  group('ZonaTablero con Tipo explícito', () {
+    test('sin Tipo explícito, usa tipoDeColor(color) como antes', () {
+      const zona = ZonaTablero(ColorZona.azul, [PosicionCasilla(0, 0)]);
+      expect(zona.tipo, Tipo.azul);
+    });
+
+    test('con Tipo explícito, lo usa en vez del de tipoDeColor', () {
+      const zonaSuperior = ZonaTablero(
+        ColorZona.naranja,
+        [PosicionCasilla(0, 0)],
+        TipoNaranjaSuperior(),
+      );
+      const zonaInferior = ZonaTablero(
+        ColorZona.naranja,
+        [PosicionCasilla(6, 0)],
+        TipoNaranjaInferior(),
+      );
+
+      expect(zonaSuperior.tipo, isA<TipoNaranjaSuperior>());
+      expect(zonaInferior.tipo, isA<TipoNaranjaInferior>());
+      expect(zonaSuperior.tipo.esPosibleAgregar([], 5), isTrue);
+      expect(zonaSuperior.tipo.esPosibleAgregar([], 1), isFalse);
+      expect(zonaInferior.tipo.esPosibleAgregar([], 1), isTrue);
+      expect(zonaInferior.tipo.esPosibleAgregar([], 5), isFalse);
+    });
+
+    test('dos zonas del mismo color pueden tener Tipo explícito distinto', () {
+      const zonaSuperior = ZonaTablero(
+        ColorZona.naranja,
+        [PosicionCasilla(0, 0)],
+        TipoNaranjaSuperior(),
+      );
+      const zonaInferior = ZonaTablero(
+        ColorZona.naranja,
+        [PosicionCasilla(6, 0)],
+        TipoNaranjaInferior(),
+      );
+
+      expect(zonaSuperior.color, zonaInferior.color); // mismo color
+      expect(zonaSuperior.tipo, isNot(isA<TipoNaranjaInferior>())); // regla distinta
     });
   });
 }

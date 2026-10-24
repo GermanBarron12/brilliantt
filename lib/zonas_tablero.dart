@@ -1,7 +1,12 @@
 import 'tablero_layout.dart';
 import 'tipo.dart';
 
-/// Regla de colocación que corresponde a cada color de zona.
+/// Regla de colocación por defecto de cada color de zona. El naranja no
+/// tiene un único Tipo por color (el nivel 4 tiene dos zonas naranjas con
+/// rangos de número distintos, ver TipoNaranjaSuperior/Inferior en
+/// tipo.dart): cada zona naranja necesita su Tipo explícito al construir
+/// el ZonaTablero (ver más abajo), así que llamar a esta función con
+/// naranja es un error de programación.
 Tipo tipoDeColor(ColorZona color) {
   switch (color) {
     case ColorZona.rojo:
@@ -14,17 +19,29 @@ Tipo tipoDeColor(ColorZona color) {
       return Tipo.azul;
     case ColorZona.morado:
       return Tipo.morado;
+    case ColorZona.blanco:
+      return Tipo.blanco;
+    case ColorZona.naranja:
+      throw UnsupportedError(
+        'El naranja no tiene una regla única por color: cada zona naranja '
+        'necesita su propio Tipo explícito al construir el ZonaTablero.',
+      );
   }
 }
 
-/// Grupo de casillas contiguas del mismo color.
+/// Grupo de casillas contiguas del mismo color. Por defecto, su regla de
+/// colocación ([tipo]) sale de [tipoDeColor]; se le puede pasar un [Tipo]
+/// explícito (tercer argumento posicional) para los casos donde dos zonas
+/// del mismo color necesitan reglas distintas, como las dos zonas naranjas
+/// del nivel 4.
 class ZonaTablero {
   final ColorZona color;
   final List<PosicionCasilla> casillas;
+  final Tipo? _tipoExplicito;
 
-  const ZonaTablero(this.color, this.casillas);
+  const ZonaTablero(this.color, this.casillas, [Tipo? tipo]) : _tipoExplicito = tipo;
 
-  Tipo get tipo => tipoDeColor(color);
+  Tipo get tipo => _tipoExplicito ?? tipoDeColor(color);
 }
 
 /// Casillas vecinas de [p] en vertical y horizontal, dentro de la grilla.
