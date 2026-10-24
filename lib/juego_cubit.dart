@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:bloc/bloc.dart';
 
+import 'configuracion_nivel.dart';
 import 'evento_puntuacion.dart';
 import 'evento_turno.dart';
 import 'jugador.dart';
@@ -11,15 +12,17 @@ import 'tablero_layout.dart';
 import 'zona_identidad.dart';
 import 'zonas_tablero.dart';
 
-/// Crea la grilla 7x7 con los 6 números iniciales en sus estrellas.
-/// Las casillas vacías quedan en null.
-List<List<int?>> tableroDesdeNumerosIniciales(List<int?> numeros) {
+/// Crea la grilla del nivel con los números iniciales en sus estrellas.
+/// Las casillas vacías quedan en null. Sin indicar [nivel], usa nivel 1
+/// (mismo comportamiento de siempre).
+List<List<int?>> tableroDesdeNumerosIniciales(List<int?> numeros, {ConfiguracionNivel? nivel}) {
+  final configuracion = nivel ?? configuracionNivel1;
   final tablero = List.generate(
-    layoutTableroNivel1.length,
-    (_) => List<int?>.filled(layoutTableroNivel1[0].length, null),
+    configuracion.filas,
+    (_) => List<int?>.filled(configuracion.columnas, null),
   );
-  for (var i = 0; i < casillasEstrella.length; i++) {
-    final posicion = casillasEstrella[i];
+  for (var i = 0; i < configuracion.casillasEstrella.length; i++) {
+    final posicion = configuracion.casillasEstrella[i];
     tablero[posicion.fila][posicion.columna] = numeros[i];
   }
   return tablero;
@@ -54,6 +57,13 @@ class JuegoEstado {
   /// saltar el turno.
   final List<EventoPuntuacion> eventosPuntuacion;
 
+  /// Las zonas del tablero de este nivel y el nombre legible de cada una.
+  /// Si no se indican al construir el estado, caen a `zonasNivel1`/
+  /// `nombresZonaNivel1` (comportamiento de siempre): así ningún código ni
+  /// test que construya un `JuegoEstado` sin pasarlas se ve afectado.
+  final List<ZonaTablero>? _zonasExplicitas;
+  final Map<String, String>? _nombresDeZonaExplicitos;
+
   const JuegoEstado({
     required this.tablero,
     this.dados,
@@ -62,7 +72,13 @@ class JuegoEstado {
     this.logs = const [],
     this.eventosTurno = const [],
     this.eventosPuntuacion = const [],
-  });
+    List<ZonaTablero>? zonas,
+    Map<String, String>? nombresDeZona,
+  })  : _zonasExplicitas = zonas,
+        _nombresDeZonaExplicitos = nombresDeZona;
+
+  List<ZonaTablero> get zonas => _zonasExplicitas ?? zonasNivel1;
+  Map<String, String> get nombresDeZona => _nombresDeZonaExplicitos ?? nombresZonaNivel1;
 
   int? valorEn(PosicionCasilla posicion) => tablero[posicion.fila][posicion.columna];
 
@@ -106,7 +122,7 @@ class JuegoEstado {
   }
 
   bool _zonaAcepta(PosicionCasilla posicion, int numero) {
-    final zona = zonasNivel1.firstWhere((z) => z.casillas.contains(posicion));
+    final zona = zonas.firstWhere((z) => z.casillas.contains(posicion));
     final valoresEnZona = zona.casillas.map(valorEn).whereType<int>().toList();
     return zona.tipo.esPosibleAgregar(valoresEnZona, numero);
   }
@@ -170,7 +186,7 @@ class JuegoEstado {
   /// calcula siempre desde el tablero actual, nunca se acumula aparte.
   int get puntaje {
     var total = 0;
-    for (final zona in zonasNivel1) {
+    for (final zona in zonas) {
       final completa = zona.casillas.every((c) => valorEn(c) != null);
       if (completa) {
         total += puntosPorZonaCompleta[zona.color]!;
@@ -184,10 +200,31 @@ class JuegoCubit extends Cubit<JuegoEstado> {
   final Random _random;
   final ProveedorJugador _jugador;
 
-  JuegoCubit(List<List<int?>> tableroInicial, {Random? random, ProveedorJugador? jugador})
-      : _random = random ?? Random(),
+  /// El nivel con el que se construyó este cubit (nivel 1 si no se indicó
+  /// ninguno). Pública para que quien dibuje la pantalla (ver
+  /// [JuegoScreen]) la lea de acá en vez de recibir la suya propia: así
+  /// hay una sola fuente de verdad y no hay forma de que la pantalla y el
+  /// cubit terminen mostrando/validando niveles distintos por error.
+  final ConfiguracionNivel configuracionNivel;
+
+  /// [nivel] determina las zonas y reglas del tablero (incluidas las
+  /// restricciones explícitas de zonas como las naranjas); sin indicarlo,
+  /// usa nivel 1 (mismo comportamiento de siempre). El [tableroInicial]
+  /// debe corresponder al mismo nivel (mismas dimensiones y estrellas) —
+  /// normalmente armado con `tableroDesdeNumerosIniciales(..., nivel: nivel)`.
+  JuegoCubit(
+    List<List<int?>> tableroInicial, {
+    Random? random,
+    ProveedorJugador? jugador,
+    ConfiguracionNivel? nivel,
+  })  : _random = random ?? Random(),
         _jugador = jugador ?? const JugadorLocalUnico(),
-        super(JuegoEstado(tablero: tableroInicial));
+        configuracionNivel = nivel ?? configuracionNivel1,
+        super(JuegoEstado(
+          tablero: tableroInicial,
+          zonas: nivel?.zonas,
+          nombresDeZona: nivel?.nombresDeZona,
+        ));
 
   /// No hace nada si la tirada actual ya tiene una jugada posible: hay que
   /// resolverla (o saltar el turno) antes de poder volver a tirar.
@@ -201,6 +238,8 @@ class JuegoCubit extends Cubit<JuegoEstado> {
       logs: state.logs,
       eventosTurno: state.eventosTurno,
       eventosPuntuacion: state.eventosPuntuacion,
+      zonas: state.zonas,
+      nombresDeZona: state.nombresDeZona,
     ));
   }
 
@@ -219,6 +258,8 @@ class JuegoCubit extends Cubit<JuegoEstado> {
       logs: state.logs,
       eventosTurno: state.eventosTurno,
       eventosPuntuacion: state.eventosPuntuacion,
+      zonas: state.zonas,
+      nombresDeZona: state.nombresDeZona,
     ));
   }
 
@@ -241,6 +282,8 @@ class JuegoCubit extends Cubit<JuegoEstado> {
         logs: state.logs,
         eventosTurno: state.eventosTurno,
         eventosPuntuacion: state.eventosPuntuacion,
+        zonas: state.zonas,
+        nombresDeZona: state.nombresDeZona,
       ));
     }
   }
@@ -255,13 +298,13 @@ class JuegoCubit extends Cubit<JuegoEstado> {
     final puntajeAntes = state.puntaje;
     final turno = state.turnoActual;
 
-    final zona = zonasNivel1.firstWhere((z) => z.casillas.contains(posicion));
+    final zona = state.zonas.firstWhere((z) => z.casillas.contains(posicion));
     final completaAntes = zona.casillas.every((c) => state.valorEn(c) != null);
 
     final nuevoTablero = [for (final fila in state.tablero) [...fila]];
     nuevoTablero[posicion.fila][posicion.columna] = numeroColocado;
 
-    final estadoConNuevoTablero = JuegoEstado(tablero: nuevoTablero);
+    final estadoConNuevoTablero = JuegoEstado(tablero: nuevoTablero, zonas: state.zonas);
     final puntajeDespues = estadoConNuevoTablero.puntaje;
     final completaDespues = zona.casillas.every((c) => estadoConNuevoTablero.valorEn(c) != null);
 
@@ -277,7 +320,7 @@ class JuegoCubit extends Cubit<JuegoEstado> {
       puntajeDespues: puntajeDespues,
     );
 
-    // Las zonas de zonasNivel1 son disjuntas y cada colocación escribe una
+    // Las zonas de un nivel son disjuntas y cada colocación escribe una
     // sola casilla, así que como mucho una zona (esta) pasa de incompleta
     // a completa en esta jugada: nunca hace falta recorrer las demás ni
     // puede haber más de un EventoPuntuacion por colocación.
@@ -288,7 +331,7 @@ class JuegoCubit extends Cubit<JuegoEstado> {
         jugadorId: _jugador.jugadorActualId,
         colorZona: zona.color,
         zonaId: idDeZona(zona),
-        nombreZona: nombresZonaNivel1[idDeZona(zona)]!,
+        nombreZona: state.nombresDeZona[idDeZona(zona)]!,
         puntosObtenidos: puntosPorZonaCompleta[zona.color]!,
       ));
     }
@@ -298,6 +341,8 @@ class JuegoCubit extends Cubit<JuegoEstado> {
       logs: [...state.logs, log],
       eventosTurno: state.eventosTurno,
       eventosPuntuacion: nuevosEventosPuntuacion,
+      zonas: state.zonas,
+      nombresDeZona: state.nombresDeZona,
     ));
   }
 
@@ -315,6 +360,8 @@ class JuegoCubit extends Cubit<JuegoEstado> {
       logs: state.logs,
       eventosTurno: [...state.eventosTurno, evento],
       eventosPuntuacion: state.eventosPuntuacion,
+      zonas: state.zonas,
+      nombresDeZona: state.nombresDeZona,
     ));
   }
 }

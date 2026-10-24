@@ -4,9 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:brilliant/configuracion_nivel.dart';
 import 'package:brilliant/dado_widget.dart';
 import 'package:brilliant/juego_cubit.dart';
 import 'package:brilliant/juego_screen.dart';
+import 'package:brilliant/tablero_layout.dart';
+import 'package:brilliant/tablero_widget.dart';
 
 /// Devuelve, en orden, los valores de dados que se le pidan.
 class _DadosFijos implements Random {
@@ -265,6 +268,55 @@ void main() {
         await tester.pump();
         expect(find.text('+7 puntos'), findsNothing);
       });
+    });
+
+    group('configuración de nivel parametrizada', () {
+      testWidgets(
+        'toma la ConfiguracionNivel del JuegoCubit inyectado y se la pasa a TableroWidget',
+        (tester) async {
+          // Nivel sintético 1x2, exclusivo de esta prueba: no representa
+          // ningún mapa oficial. JuegoScreen ya no recibe su propia
+          // configuración por parámetro: la lee del JuegoCubit al que está
+          // conectada, así que alcanza con que el cubit la tenga.
+          final nivelDePrueba = ConfiguracionNivel(
+            id: 98,
+            nombre: 'Nivel de prueba (JuegoScreen)',
+            layout: const [
+              [ColorZona.rojo, ColorZona.verde],
+            ],
+            casillasEstrella: const [PosicionCasilla(0, 0)],
+          );
+          final tablero = tableroDesdeNumerosIniciales([3], nivel: nivelDePrueba);
+
+          await tester.pumpWidget(
+            MaterialApp(
+              home: BlocProvider(
+                create: (_) => JuegoCubit(tablero, nivel: nivelDePrueba),
+                child: const JuegoScreen(),
+              ),
+            ),
+          );
+
+          // Inspecciona el TableroWidget real que arma JuegoScreen: si
+          // hubiera ignorado la configuración del cubit, layout/estrellas
+          // seguirían siendo los de nivel 1 (7x7), no el 1x2 sintético.
+          final tableroWidget = tester.widget<TableroWidget>(find.byType(TableroWidget));
+          expect(tableroWidget.layout, nivelDePrueba.layout);
+          expect(tableroWidget.estrellas, nivelDePrueba.casillasEstrella.toSet());
+          expect(find.text('3'), findsOneWidget); // el número inicial ya colocado
+        },
+      );
+
+      testWidgets(
+        'si JuegoCubit no recibe nivel, JuegoScreen tampoco: ambos caen a configuracionNivel1',
+        (tester) async {
+          await tester.pumpWidget(_pantallaDePrueba([1, 6]));
+
+          final tableroWidget = tester.widget<TableroWidget>(find.byType(TableroWidget));
+          expect(tableroWidget.layout, configuracionNivel1.layout);
+          expect(tableroWidget.estrellas, configuracionNivel1.casillasEstrella.toSet());
+        },
+      );
     });
   });
 }

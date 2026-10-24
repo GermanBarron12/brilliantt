@@ -4,7 +4,10 @@ import 'tablero_layout.dart';
 
 /// Dibuja la grilla del tablero. Cada casilla se puede tocar y se ve
 /// distinta según tenga número, sea estrella, esté seleccionada, esté
-/// resaltada o repetida.
+/// resaltada o repetida. El color de cada casilla sale de [layout], no de
+/// un tablero fijo: por defecto es el de nivel 1 (mismo comportamiento de
+/// siempre para quien no pase nada), pero se le puede pasar el layout de
+/// cualquier otro nivel.
 class TableroWidget extends StatelessWidget {
   final List<List<int?>> valores;
   final Set<PosicionCasilla> estrellas;
@@ -12,6 +15,7 @@ class TableroWidget extends StatelessWidget {
   final Set<PosicionCasilla> repetidas;
   final PosicionCasilla? seleccionada;
   final void Function(PosicionCasilla posicion) onTap;
+  final List<List<ColorZona>> layout;
 
   const TableroWidget({
     super.key,
@@ -21,17 +25,18 @@ class TableroWidget extends StatelessWidget {
     required this.repetidas,
     required this.seleccionada,
     required this.onTap,
+    this.layout = layoutTableroNivel1,
   });
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        for (var fila = 0; fila < layoutTableroNivel1.length; fila++)
+        for (var fila = 0; fila < layout.length; fila++)
           Expanded(
             child: Row(
               children: [
-                for (var columna = 0; columna < layoutTableroNivel1[fila].length; columna++)
+                for (var columna = 0; columna < layout[fila].length; columna++)
                   Expanded(child: _casillaEn(PosicionCasilla(fila, columna))),
               ],
             ),
@@ -42,7 +47,7 @@ class TableroWidget extends StatelessWidget {
 
   Widget _casillaEn(PosicionCasilla posicion) {
     return _Casilla(
-      color: coloresDeZona[layoutTableroNivel1[posicion.fila][posicion.columna]]!,
+      color: coloresDeZona[layout[posicion.fila][posicion.columna]]!,
       valor: valores[posicion.fila][posicion.columna],
       esEstrella: estrellas.contains(posicion),
       resaltada: resaltadas.contains(posicion),

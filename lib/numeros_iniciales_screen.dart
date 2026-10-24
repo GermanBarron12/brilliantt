@@ -1,29 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'configuracion_nivel.dart';
 import 'juego_cubit.dart';
 import 'juego_screen.dart';
 import 'numeros_iniciales_cubit.dart';
 import 'tablero_layout.dart';
 import 'tablero_widget.dart';
 
-/// Pantalla donde se eligen los 6 números iniciales (del 1 al 6, uno
-/// por zona, sin repetirse) sobre el tablero de Brilliant, antes de
-/// arrancar la partida.
+/// Pantalla donde se eligen los números iniciales (uno por cada estrella
+/// del nivel, del 1 al 6, sin repetirse) antes de arrancar la partida de
+/// Brilliant. Sin indicar nada, usa nivel 1 (mismo comportamiento de
+/// siempre); se le puede pasar cualquier otra [ConfiguracionNivel].
 class NumerosInicialesScreen extends StatelessWidget {
-  const NumerosInicialesScreen({super.key});
+  final ConfiguracionNivel? configuracionNivel;
+
+  const NumerosInicialesScreen({super.key, this.configuracionNivel});
 
   @override
   Widget build(BuildContext context) {
+    final nivel = configuracionNivel ?? configuracionNivel1;
     return BlocProvider(
-      create: (_) => NumerosInicialesCubit(),
-      child: const _NumerosInicialesVista(),
+      create: (_) => NumerosInicialesCubit(nivel.casillasEstrella),
+      child: _NumerosInicialesVista(nivel: nivel),
     );
   }
 }
 
 class _NumerosInicialesVista extends StatelessWidget {
-  const _NumerosInicialesVista();
+  final ConfiguracionNivel nivel;
+
+  const _NumerosInicialesVista({required this.nivel});
 
   @override
   Widget build(BuildContext context) {
@@ -45,12 +52,13 @@ class _NumerosInicialesVista extends StatelessWidget {
                     child: AspectRatio(
                       aspectRatio: 1,
                       child: TableroWidget(
-                        valores: tableroDesdeNumerosIniciales(estado.valores),
-                        estrellas: casillasEstrella.toSet(),
+                        layout: nivel.layout,
+                        valores: tableroDesdeNumerosIniciales(estado.valores, nivel: nivel),
+                        estrellas: nivel.casillasEstrella.toSet(),
                         resaltadas: const {},
                         repetidas: {
-                          for (var i = 0; i < casillasEstrella.length; i++)
-                            if (estado.casillaRepetida(i)) casillasEstrella[i],
+                          for (var i = 0; i < nivel.casillasEstrella.length; i++)
+                            if (estado.casillaRepetida(i)) nivel.casillasEstrella[i],
                         },
                         seleccionada: null,
                         onTap: (posicion) => _alTocarCasilla(context, posicion),
@@ -81,7 +89,7 @@ class _NumerosInicialesVista extends StatelessWidget {
 
   /// Solo las casillas con estrella reciben número.
   Future<void> _alTocarCasilla(BuildContext context, PosicionCasilla posicion) async {
-    final indice = casillasEstrella.indexOf(posicion);
+    final indice = nivel.casillasEstrella.indexOf(posicion);
     if (indice == -1) return;
 
     final cubit = context.read<NumerosInicialesCubit>();
@@ -116,7 +124,10 @@ class _NumerosInicialesVista extends StatelessWidget {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => BlocProvider(
-          create: (_) => JuegoCubit(tableroDesdeNumerosIniciales(estado.valores)),
+          create: (_) => JuegoCubit(
+            tableroDesdeNumerosIniciales(estado.valores, nivel: nivel),
+            nivel: nivel,
+          ),
           child: const JuegoScreen(),
         ),
       ),

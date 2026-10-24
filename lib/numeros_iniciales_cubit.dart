@@ -1,23 +1,22 @@
 import 'package:bloc/bloc.dart';
 
-/// Cantidad de zonas donde se debe colocar un número inicial.
-const cantidadNumerosIniciales = 6;
+import 'tablero_layout.dart';
 
 /// Estado de la selección de los números iniciales: una casilla por
-/// zona, que puede estar todavía sin llenar (null).
+/// estrella del nivel elegido, que puede estar todavía sin llenar (null).
 class NumerosInicialesEstado {
   final List<int?> valores;
 
   const NumerosInicialesEstado(this.valores);
 
-  factory NumerosInicialesEstado.vacio() {
-    return NumerosInicialesEstado(List.filled(cantidadNumerosIniciales, null));
+  factory NumerosInicialesEstado.vacio(int cantidadCasillas) {
+    return NumerosInicialesEstado(List.filled(cantidadCasillas, null));
   }
 
-  /// Regla: hay que llenar las 6 casillas antes de poder empezar.
+  /// Regla: hay que llenar todas las casillas antes de poder empezar.
   bool get completo => valores.every((valor) => valor != null);
 
-  /// Regla: los números del 1 al 6 no se pueden repetir.
+  /// Regla: los números no se pueden repetir.
   bool get tieneRepetidos {
     final elegidos = valores.whereType<int>().toList();
     return elegidos.toSet().length != elegidos.length;
@@ -37,10 +36,14 @@ class NumerosInicialesEstado {
   bool get esValido => completo && !tieneRepetidos;
 }
 
-/// Maneja la selección de los 6 números iniciales (del 1 al 6, uno por
-/// zona) que se hace antes de arrancar la partida de Brilliant.
+/// Maneja la selección de los números iniciales (uno por cada estrella del
+/// nivel elegido) que se hace antes de arrancar la partida de Brilliant.
+/// La cantidad de casillas se deriva de [casillasEstrella] recibido, no de
+/// un valor fijo: así sirve para nivel 1 (6 estrellas) y para cualquier
+/// otro nivel con una cantidad distinta.
 class NumerosInicialesCubit extends Cubit<NumerosInicialesEstado> {
-  NumerosInicialesCubit() : super(NumerosInicialesEstado.vacio());
+  NumerosInicialesCubit(List<PosicionCasilla> casillasEstrella)
+      : super(NumerosInicialesEstado.vacio(casillasEstrella.length));
 
   /// Asigna [valor] a la casilla [indice] (o la vacía si [valor] es null).
   void seleccionar(int indice, int? valor) {

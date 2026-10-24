@@ -5,12 +5,17 @@ import 'dado_widget.dart';
 import 'juego_cubit.dart';
 import 'notificacion_puntuacion.dart';
 import 'reglas_zona_panel.dart';
-import 'tablero_layout.dart';
 import 'tablero_widget.dart';
 
 /// Pantalla de la partida: se tiran los dados, se elige con cuál se va a
 /// anclar, se elige el ancla y se escribe el otro número en una casilla
 /// iluminada. También se puede saltar el turno en cualquier momento.
+///
+/// El nivel que se dibuja (layout, estrellas) sale directo de
+/// `context.read<JuegoCubit>().configuracionNivel` — no se le pasa por su
+/// cuenta: así hay una sola fuente de verdad y no hay forma de que la
+/// pantalla termine mostrando un nivel distinto al que el cubit usa
+/// realmente para validar las jugadas.
 class JuegoScreen extends StatefulWidget {
   const JuegoScreen({super.key});
 
@@ -27,6 +32,7 @@ class _JuegoScreenState extends State<JuegoScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final nivel = context.read<JuegoCubit>().configuracionNivel;
     return Scaffold(
       appBar: AppBar(title: const Text('Brilliant · Partida')),
       body: BlocConsumer<JuegoCubit, JuegoEstado>(
@@ -66,8 +72,9 @@ class _JuegoScreenState extends State<JuegoScreen> {
                     child: AspectRatio(
                       aspectRatio: 1,
                       child: TableroWidget(
+                        layout: nivel.layout,
                         valores: estado.tablero,
-                        estrellas: casillasEstrella.toSet(),
+                        estrellas: nivel.casillasEstrella.toSet(),
                         resaltadas: estado.ancla != null
                             ? estado.casillasValidas.toSet()
                             : estado.casillasAnclaPosibles,

@@ -185,5 +185,66 @@ void main() {
       expect(bordeEnCasilla(seleccionada.fila, seleccionada.columna)!.top.width, 3);
       expect(bordeEnCasilla(vecinaSinSeleccionar.fila, vecinaSinSeleccionar.columna), isNull);
     });
+
+    group('TableroWidget: layout parametrizado', () {
+      test('sin pasar layout, usa layoutTableroNivel1 por defecto (regresión nivel 1)', () {
+        const widget = TableroWidget(
+          valores: [],
+          estrellas: {},
+          resaltadas: {},
+          repetidas: {},
+          seleccionada: null,
+          onTap: _sinOperacion,
+        );
+        expect(widget.layout, layoutTableroNivel1);
+      });
+
+      testWidgets('con un layout propio, pinta esos colores en vez de los de nivel 1', (
+        tester,
+      ) async {
+        // Layout sintético de 2x2, exclusivo de esta prueba: no representa
+        // ningún mapa oficial, solo prueba que TableroWidget ya no depende
+        // del global fijo.
+        const layoutDePrueba = [
+          [ColorZona.rojo, ColorZona.verde],
+          [ColorZona.azul, ColorZona.morado],
+        ];
+        final valores = List.generate(2, (_) => List<int?>.filled(2, null));
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: TableroWidget(
+                layout: layoutDePrueba,
+                valores: valores,
+                estrellas: const {},
+                resaltadas: const {},
+                repetidas: const {},
+                seleccionada: null,
+                onTap: (_) {},
+              ),
+            ),
+          ),
+        );
+
+        Color colorEnCasilla(int fila, int columna) {
+          final gestureDetector = find.byType(GestureDetector).at(fila * 2 + columna);
+          final container = tester.widget<Container>(
+            find.descendant(of: gestureDetector, matching: find.byType(Container)),
+          );
+          return (container.decoration as BoxDecoration).color!;
+        }
+
+        // Solo 4 casillas en total: confirma que itera sobre layoutDePrueba
+        // (2x2), no sobre layoutTableroNivel1 (7x7).
+        expect(find.byType(GestureDetector), findsNWidgets(4));
+        expect(colorEnCasilla(0, 0), coloresDeZona[ColorZona.rojo]);
+        expect(colorEnCasilla(0, 1), coloresDeZona[ColorZona.verde]);
+        expect(colorEnCasilla(1, 0), coloresDeZona[ColorZona.azul]);
+        expect(colorEnCasilla(1, 1), coloresDeZona[ColorZona.morado]);
+      });
+    });
   });
 }
+
+void _sinOperacion(PosicionCasilla posicion) {}

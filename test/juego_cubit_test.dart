@@ -2,12 +2,29 @@ import 'dart:math';
 
 import 'package:test/test.dart';
 
+import 'package:brilliant/configuracion_nivel.dart';
 import 'package:brilliant/juego_cubit.dart';
 import 'package:brilliant/jugador.dart';
 import 'package:brilliant/puntuacion.dart';
 import 'package:brilliant/tablero_layout.dart';
+import 'package:brilliant/tipo.dart';
 import 'package:brilliant/zona_identidad.dart';
 import 'package:brilliant/zonas_tablero.dart';
+
+/// Configuración sintética de prueba, exclusiva de este archivo: un
+/// tablero 2x2 de una sola zona azul ("todos iguales"), con una sola
+/// estrella. No representa ningún mapa oficial, solo sirve para probar
+/// que JuegoCubit/JuegoEstado usan la configuración recibida y no los
+/// globales fijos de nivel 1.
+final _nivelSintetico = ConfiguracionNivel(
+  id: 99,
+  nombre: 'Nivel de prueba (azul)',
+  layout: const [
+    [ColorZona.azul, ColorZona.azul],
+    [ColorZona.azul, ColorZona.azul],
+  ],
+  casillasEstrella: const [PosicionCasilla(0, 0)],
+);
 
 /// ProveedorJugador de prueba, para confirmar que JuegoCubit no depende de
 /// ningun id fijo: usa el que le inyecten.
@@ -849,6 +866,177 @@ void main() {
 
         expect(cubit.state.eventosPuntuacion.single.jugadorId, 'jugador-test');
         cubit.close();
+      });
+    });
+  });
+
+  group('JuegoCubit/JuegoEstado: parametrización por ConfiguracionNivel', () {
+    group('JuegoCubit.configuracionNivel: fuente única para sincronizar con JuegoScreen', () {
+      test('sin indicar nivel, configuracionNivel es configuracionNivel1', () {
+        final cubit = JuegoCubit(tableroInicial, random: _DadosFijos([1, 6]));
+        expect(cubit.configuracionNivel, same(configuracionNivel1));
+        cubit.close();
+      });
+
+      test('con nivel indicado, configuracionNivel es exactamente ese objeto', () {
+        final tablero = tableroDesdeNumerosIniciales([2], nivel: _nivelSintetico);
+        final cubit = JuegoCubit(tablero, nivel: _nivelSintetico, random: _DadosFijos([2, 2]));
+        expect(cubit.configuracionNivel, same(_nivelSintetico));
+        cubit.close();
+      });
+    });
+
+    group('regresión: sin indicar nivel, o con configuracionNivel1, nivel 1 funciona igual', () {
+      test('sin indicar nivel, el estado usa zonasNivel1 y nombresZonaNivel1 (de siempre)', () {
+        final cubit = JuegoCubit(tableroInicial, random: _DadosFijos([1, 6]));
+        expect(cubit.state.zonas, zonasNivel1);
+        expect(cubit.state.nombresDeZona, nombresZonaNivel1);
+        cubit.close();
+      });
+
+      test('con nivel: configuracionNivel1, el resultado es igual que sin indicar nada', () {
+        final cubitPorDefecto = JuegoCubit(tableroInicial, random: _DadosFijos([1, 6]));
+        final cubitExplicito = JuegoCubit(
+          tableroInicial,
+          random: _DadosFijos([1, 6]),
+          nivel: configuracionNivel1,
+        );
+
+        cubitPorDefecto.tirarDados();
+        cubitExplicito.tirarDados();
+        cubitPorDefecto.seleccionarDado(1);
+        cubitExplicito.seleccionarDado(1);
+        cubitPorDefecto.tocarCasilla(const PosicionCasilla(0, 2));
+        cubitExplicito.tocarCasilla(const PosicionCasilla(0, 2));
+
+        expect(cubitExplicito.state.ancla, cubitPorDefecto.state.ancla);
+        expect(cubitExplicito.state.numeroAColocar, cubitPorDefecto.state.numeroAColocar);
+        expect(cubitExplicito.state.casillasValidas, cubitPorDefecto.state.casillasValidas);
+        cubitPorDefecto.close();
+        cubitExplicito.close();
+      });
+    });
+
+    group('usa la configuración sintética recibida, no los globales de nivel 1', () {
+      test('tableroDesdeNumerosIniciales arma el tablero segun el nivel recibido', () {
+        final tablero = tableroDesdeNumerosIniciales([2], nivel: _nivelSintetico);
+
+        expect(tablero.length, 2); // 2x2, no 7x7
+        expect(tablero[0].length, 2);
+        expect(tablero[0][0], 2); // unica estrella del nivel sintetico
+      });
+
+      test('JuegoCubit construido con nivel usa las zonas de esa configuracion', () {
+        final tablero = tableroDesdeNumerosIniciales([2], nivel: _nivelSintetico);
+        final cubit = JuegoCubit(tablero, nivel: _nivelSintetico, random: _DadosFijos([2, 2]));
+
+        expect(cubit.state.zonas, _nivelSintetico.zonas);
+        expect(cubit.state.zonas, isNot(zonasNivel1));
+        expect(cubit.state.tablero.length, 2);
+        cubit.close();
+      });
+
+      test('la regla de la zona sintetica (azul: todos iguales) se aplica al colocar', () {
+        final tablero = tableroDesdeNumerosIniciales([2], nivel: _nivelSintetico);
+        final cubit = JuegoCubit(tablero, nivel: _nivelSintetico, random: _DadosFijos([2, 2]));
+
+        cubit.tirarDados();
+        cubit.seleccionarDado(2);
+        cubit.tocarCasilla(const PosicionCasilla(0, 0)); // ancla, ya tiene el 2
+        cubit.tocarCasilla(const PosicionCasilla(0, 1)); // coloca el otro 2
+
+        expect(cubit.state.valorEn(const PosicionCasilla(0, 1)), 2);
+        cubit.close();
+      });
+
+      test('al completar la zona sintetica, el EventoPuntuacion usa nombresDeZona del nivel recibido', () {
+        final tablero = tableroDesdeNumerosIniciales([2], nivel: _nivelSintetico);
+        tablero[0][1] = 2;
+        tablero[1][0] = 2;
+        // (1,1) queda vacia: ultimo cupo de la zona sintetica.
+
+        final cubit = JuegoCubit(tablero, nivel: _nivelSintetico, random: _DadosFijos([2, 2]));
+        cubit.tirarDados();
+        cubit.seleccionarDado(2);
+        cubit.tocarCasilla(const PosicionCasilla(0, 1)); // ancla; (1,1) es su vecina vacia
+        cubit.tocarCasilla(const PosicionCasilla(1, 1));
+
+        final zonaSintetica = _nivelSintetico.zonas.single;
+        final evento = cubit.state.eventosPuntuacion.single;
+        expect(evento.nombreZona, _nivelSintetico.nombresDeZona[idDeZona(zonaSintetica)]);
+        expect(evento.nombreZona, 'Zona Azul');
+        cubit.close();
+      });
+    });
+
+    group('zonas con Tipo explícito (blanco/naranja) integradas con JuegoEstado, sin romper nivel 1', () {
+      // JuegoEstado es lo que JuegoCubit usa internamente para validar
+      // colocaciones (_zonaAcepta, casillasValidas): probar acá que respeta
+      // un Tipo explícito es fiel a cómo lo usaría JuegoCubit. Se prueba a
+      // este nivel (y no armando una ConfiguracionNivel completa) porque
+      // ConfiguracionNivel.zonas todavía no tiene forma de asignar un Tipo
+      // explícito por zona al calcularlas automáticamente (flood fill) —
+      // ver el informe final, queda señalado como pendiente para la Etapa 4.
+      test('una zona naranja superior (Tipo explícito) acepta 4-6 y rechaza el resto', () {
+        final tablero = [
+          [5, null],
+        ];
+        const zona = ZonaTablero(
+          ColorZona.naranja,
+          [PosicionCasilla(0, 0), PosicionCasilla(0, 1)],
+          TipoNaranjaSuperior(),
+        );
+
+        final estadoAcepta = JuegoEstado(
+          tablero: tablero,
+          dados: const [5, 6],
+          ancla: const PosicionCasilla(0, 0),
+          zonas: [zona],
+        );
+        expect(estadoAcepta.numeroAColocar, 6);
+        expect(estadoAcepta.casillasValidas, contains(const PosicionCasilla(0, 1)));
+
+        final estadoRechaza = JuegoEstado(
+          tablero: tablero,
+          dados: const [5, 2],
+          ancla: const PosicionCasilla(0, 0),
+          zonas: [zona],
+        );
+        expect(estadoRechaza.numeroAColocar, 2);
+        expect(estadoRechaza.casillasValidas, isNot(contains(const PosicionCasilla(0, 1))));
+      });
+
+      test('una zona naranja inferior (Tipo explícito) acepta 1-3 y rechaza el resto', () {
+        final tablero = [
+          [1, null],
+        ];
+        const zona = ZonaTablero(
+          ColorZona.naranja,
+          [PosicionCasilla(0, 0), PosicionCasilla(0, 1)],
+          TipoNaranjaInferior(),
+        );
+
+        final estadoAcepta = JuegoEstado(
+          tablero: tablero,
+          dados: const [1, 3],
+          ancla: const PosicionCasilla(0, 0),
+          zonas: [zona],
+        );
+        expect(estadoAcepta.casillasValidas, contains(const PosicionCasilla(0, 1)));
+
+        final estadoRechaza = JuegoEstado(
+          tablero: tablero,
+          dados: const [1, 6],
+          ancla: const PosicionCasilla(0, 0),
+          zonas: [zona],
+        );
+        expect(estadoRechaza.casillasValidas, isNot(contains(const PosicionCasilla(0, 1))));
+      });
+
+      test('nivel 1 sigue sin usar ningun Tipo explícito: cada zona resuelve por su color', () {
+        for (final zona in zonasNivel1) {
+          expect(zona.tipo, tipoDeColor(zona.color));
+        }
       });
     });
   });
