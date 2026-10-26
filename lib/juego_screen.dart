@@ -65,7 +65,7 @@ class _JuegoScreenState extends State<JuegoScreen> {
                   onSeleccionar: cubit.seleccionarDado,
                 ),
                 const SizedBox(height: 12),
-                const ReglasZonaPanel(),
+                ReglasZonaPanel(zonas: estado.zonas),
                 const SizedBox(height: 12),
                 Expanded(
                   child: Center(
