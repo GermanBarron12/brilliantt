@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'numeros_iniciales_screen.dart';
+import 'pantalla_inicio.dart';
 
 void main() {
   runApp(const BrilliantApp());
@@ -14,7 +14,7 @@ class BrilliantApp extends StatelessWidget {
     return MaterialApp(
       title: 'Brilliant',
       theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple)),
-      home: const NumerosInicialesScreen(),
+      home: const PantallaInicio(),
     );
   }
 }
