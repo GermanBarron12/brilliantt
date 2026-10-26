@@ -56,16 +56,22 @@ final ConfiguracionNivel configuracionNivel2 = ConfiguracionNivel(
   coloresDeZonaUnica: const {ColorZona.amarillo, ColorZona.blanco},
 );
 
-/// Nivel 3: layout 7x7. Solo el blanco (4 casillas, todas aisladas entre
+/// Nivel 3: layout 7x7. Solo el blanco (5 casillas, todas aisladas entre
 /// sí) necesita la fusión de zona única. El amarillo forma 2 zonas reales
 /// de 3 casillas cada una (ya conectadas, a diferencia de nivel 1/2) y el
-/// morado forma 3 zonas reales (una de 7 y dos de 3): ninguno de los dos
+/// morado forma 3 zonas reales (una de 6 y dos de 3): ninguno de los dos
 /// necesita fusión especial.
+///
+/// Corregido contra la imagen oficial de la hoja de cálculo (Etapa 6): la
+/// casilla (3,3) — columna L, fila 4 en la hoja — es blanca, no morada
+/// como tenía esta matriz antes. Es la quinta casilla blanca del nivel, y
+/// queda aislada de las otras 4 (sin vecina blanca ortogonal), así que la
+/// fusión de zona única ya existente la cubre sin cambios adicionales.
 const List<List<ColorZona>> _layoutNivel3 = [
   [_a, _a, _m, _b, _m, _a, _a],
   [_b, _a, _m, _m, _m, _a, _b],
   [_r, _r, _r, _m, _r, _r, _r],
-  [_r, _r, _r, _m, _r, _r, _r],
+  [_r, _r, _r, _b, _r, _r, _r],
   [_v, _z, _z, _z, _z, _z, _v],
   [_v, _v, _v, _v, _v, _v, _v],
   [_m, _m, _m, _b, _m, _m, _m],
@@ -74,7 +80,7 @@ const List<List<ColorZona>> _layoutNivel3 = [
 const List<PosicionCasilla> _casillasEstrellaNivel3 = [
   PosicionCasilla(1, 2), // morado
   PosicionCasilla(1, 5), // amarillo
-  PosicionCasilla(3, 3), // morado
+  PosicionCasilla(3, 3), // blanco
   PosicionCasilla(4, 1), // azul
   PosicionCasilla(4, 6), // verde
   PosicionCasilla(6, 2), // morado
@@ -125,3 +131,24 @@ final ConfiguracionNivel configuracionNivel4 = ConfiguracionNivel(
     PosicionCasilla(6, 0): const TipoNaranjaInferior(), // fila 6: cualquier casilla sirve
   },
 );
+
+/// Las 4 configuraciones oficiales, en orden, para recorrerlas (por
+/// ejemplo en el selector de niveles) sin tener que listarlas a mano en
+/// cada lugar que las necesite.
+final List<ConfiguracionNivel> configuracionesOficiales = [
+  configuracionNivel1,
+  configuracionNivel2,
+  configuracionNivel3,
+  configuracionNivel4,
+];
+
+/// La configuración oficial cuyo id es [id], o `null` si no existe ninguna
+/// con ese id. Única función centralizada para buscar un nivel por su
+/// identificador, para no repetir un switch/if equivalente en cada
+/// pantalla que necesite ir de un id a su [ConfiguracionNivel].
+ConfiguracionNivel? configuracionPorId(int id) {
+  for (final configuracion in configuracionesOficiales) {
+    if (configuracion.id == id) return configuracion;
+  }
+  return null;
+}

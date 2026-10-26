@@ -274,12 +274,18 @@ void main() {
       testWidgets(
         'toma la ConfiguracionNivel del JuegoCubit inyectado y se la pasa a TableroWidget',
         (tester) async {
-          // Nivel sintético 1x2, exclusivo de esta prueba: no representa
-          // ningún mapa oficial. JuegoScreen ya no recibe su propia
-          // configuración por parámetro: la lee del JuegoCubit al que está
-          // conectada, así que alcanza con que el cubit la tenga.
+          // Nivel sintético 1x2, exclusivo de esta prueba: el layout NO
+          // representa ningún mapa oficial. JuegoScreen ya no recibe su
+          // propia configuración por parámetro: la lee del JuegoCubit al
+          // que está conectada, así que alcanza con que el cubit la tenga.
+          // El id es el real de nivel 1 (rojo tiene puntuación individual
+          // definida ahí: 6) porque la casilla de la estrella ya completa
+          // su zona rojo de una sola casilla desde el arranque, y
+          // JuegoScreen calcula `estado.puntaje` en cada build: con un id
+          // inventado, eso lanzaría la excepción de puntuación indefinida
+          // apenas se construyera la pantalla.
           final nivelDePrueba = ConfiguracionNivel(
-            id: 98,
+            id: 1,
             nombre: 'Nivel de prueba (JuegoScreen)',
             layout: const [
               [ColorZona.rojo, ColorZona.verde],

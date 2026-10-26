@@ -64,6 +64,12 @@ class JuegoEstado {
   final List<ZonaTablero>? _zonasExplicitas;
   final Map<String, String>? _nombresDeZonaExplicitos;
 
+  /// El id del nivel activo. Si no se indica al construir el estado, cae a
+  /// nivel 1 (comportamiento de siempre) — mismo patrón que [zonas]/
+  /// [nombresDeZona]. Es la clave, junto al color de cada zona, para
+  /// calcular la puntuación individual correcta con [puntuacionIndividual].
+  final int? _nivelIdExplicito;
+
   const JuegoEstado({
     required this.tablero,
     this.dados,
@@ -74,11 +80,14 @@ class JuegoEstado {
     this.eventosPuntuacion = const [],
     List<ZonaTablero>? zonas,
     Map<String, String>? nombresDeZona,
+    int? nivelId,
   })  : _zonasExplicitas = zonas,
-        _nombresDeZonaExplicitos = nombresDeZona;
+        _nombresDeZonaExplicitos = nombresDeZona,
+        _nivelIdExplicito = nivelId;
 
   List<ZonaTablero> get zonas => _zonasExplicitas ?? zonasNivel1;
   Map<String, String> get nombresDeZona => _nombresDeZonaExplicitos ?? nombresZonaNivel1;
+  int get nivelId => _nivelIdExplicito ?? 1;
 
   int? valorEn(PosicionCasilla posicion) => tablero[posicion.fila][posicion.columna];
 
@@ -189,7 +198,7 @@ class JuegoEstado {
     for (final zona in zonas) {
       final completa = zona.casillas.every((c) => valorEn(c) != null);
       if (completa) {
-        total += puntosPorZonaCompleta[zona.color]!;
+        total += puntuacionIndividual(nivelId, zona.color);
       }
     }
     return total;
@@ -224,6 +233,7 @@ class JuegoCubit extends Cubit<JuegoEstado> {
           tablero: tableroInicial,
           zonas: nivel?.zonas,
           nombresDeZona: nivel?.nombresDeZona,
+          nivelId: nivel?.id,
         ));
 
   /// No hace nada si la tirada actual ya tiene una jugada posible: hay que
@@ -240,6 +250,7 @@ class JuegoCubit extends Cubit<JuegoEstado> {
       eventosPuntuacion: state.eventosPuntuacion,
       zonas: state.zonas,
       nombresDeZona: state.nombresDeZona,
+      nivelId: state.nivelId,
     ));
   }
 
@@ -260,6 +271,7 @@ class JuegoCubit extends Cubit<JuegoEstado> {
       eventosPuntuacion: state.eventosPuntuacion,
       zonas: state.zonas,
       nombresDeZona: state.nombresDeZona,
+      nivelId: state.nivelId,
     ));
   }
 
@@ -284,6 +296,7 @@ class JuegoCubit extends Cubit<JuegoEstado> {
         eventosPuntuacion: state.eventosPuntuacion,
         zonas: state.zonas,
         nombresDeZona: state.nombresDeZona,
+        nivelId: state.nivelId,
       ));
     }
   }
@@ -304,7 +317,11 @@ class JuegoCubit extends Cubit<JuegoEstado> {
     final nuevoTablero = [for (final fila in state.tablero) [...fila]];
     nuevoTablero[posicion.fila][posicion.columna] = numeroColocado;
 
-    final estadoConNuevoTablero = JuegoEstado(tablero: nuevoTablero, zonas: state.zonas);
+    final estadoConNuevoTablero = JuegoEstado(
+      tablero: nuevoTablero,
+      zonas: state.zonas,
+      nivelId: state.nivelId,
+    );
     final puntajeDespues = estadoConNuevoTablero.puntaje;
     final completaDespues = zona.casillas.every((c) => estadoConNuevoTablero.valorEn(c) != null);
 
@@ -332,7 +349,7 @@ class JuegoCubit extends Cubit<JuegoEstado> {
         colorZona: zona.color,
         zonaId: idDeZona(zona),
         nombreZona: state.nombresDeZona[idDeZona(zona)]!,
-        puntosObtenidos: puntosPorZonaCompleta[zona.color]!,
+        puntosObtenidos: puntuacionIndividual(state.nivelId, zona.color),
       ));
     }
 
@@ -343,6 +360,7 @@ class JuegoCubit extends Cubit<JuegoEstado> {
       eventosPuntuacion: nuevosEventosPuntuacion,
       zonas: state.zonas,
       nombresDeZona: state.nombresDeZona,
+      nivelId: state.nivelId,
     ));
   }
 
@@ -362,6 +380,7 @@ class JuegoCubit extends Cubit<JuegoEstado> {
       eventosPuntuacion: state.eventosPuntuacion,
       zonas: state.zonas,
       nombresDeZona: state.nombresDeZona,
+      nivelId: state.nivelId,
     ));
   }
 }

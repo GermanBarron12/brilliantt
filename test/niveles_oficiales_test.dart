@@ -34,7 +34,7 @@ void main() {
     [a, a, m, b, m, a, a],
     [b, a, m, m, m, a, b],
     [r, r, r, m, r, r, r],
-    [r, r, r, m, r, r, r],
+    [r, r, r, b, r, r, r], // (3,3): blanco, corregido contra la imagen oficial (Etapa 6)
     [v, z, z, z, z, z, v],
     [v, v, v, v, v, v, v],
     [m, m, m, b, m, m, m],
@@ -168,7 +168,7 @@ void main() {
     test('cada casilla estrella tiene el color de zona correcto', () {
       expect(configuracionNivel3.layout[1][2], ColorZona.morado);
       expect(configuracionNivel3.layout[1][5], ColorZona.amarillo);
-      expect(configuracionNivel3.layout[3][3], ColorZona.morado);
+      expect(configuracionNivel3.layout[3][3], ColorZona.blanco);
       expect(configuracionNivel3.layout[4][1], ColorZona.azul);
       expect(configuracionNivel3.layout[4][6], ColorZona.verde);
       expect(configuracionNivel3.layout[6][2], ColorZona.morado);
@@ -179,13 +179,14 @@ void main() {
       expect(todas.length, 49);
     });
 
-    test('blanco queda fusionado en una sola zona de 4 casillas', () {
+    test('blanco queda fusionado en una sola zona de 5 casillas (incluye la (3,3) corregida)', () {
       final blancas = configuracionNivel3.zonas.where((z) => z.color == ColorZona.blanco);
       expect(blancas.length, 1);
       expect(blancas.single.casillas.toSet(), {
         const PosicionCasilla(0, 3),
         const PosicionCasilla(1, 0),
         const PosicionCasilla(1, 6),
+        const PosicionCasilla(3, 3),
         const PosicionCasilla(6, 3),
       });
     });
@@ -198,10 +199,10 @@ void main() {
       }
     });
 
-    test('morado NO se fusiona: son 3 zonas reales (una de 7 y dos de 3)', () {
+    test('morado NO se fusiona: son 3 zonas reales (una de 6 y dos de 3, tras quitarle la (3,3) a la grande)', () {
       final moradas = configuracionNivel3.zonas.where((z) => z.color == ColorZona.morado).toList();
       expect(moradas.length, 3);
-      expect(moradas.map((z) => z.casillas.length).toList()..sort(), [3, 3, 7]);
+      expect(moradas.map((z) => z.casillas.length).toList()..sort(), [3, 3, 6]);
     });
 
     test('la zona blanca usa TipoBlanco (todos los números iguales)', () {
@@ -409,14 +410,42 @@ void main() {
       });
     });
 
-    test('puntosPorZonaCompleta (modo un jugador) sigue igual, sin tocar', () {
-      expect(puntosPorZonaCompleta, {
-        ColorZona.amarillo: 6,
-        ColorZona.verde: 4,
-        ColorZona.morado: 6,
-        ColorZona.azul: 7,
-        ColorZona.rojo: 6,
-      });
+    test(
+      'puntosPorZonaCompleta (modo un jugador, nivel 1) usa los valores oficiales confirmados en Etapa 6 '
+      '(amarillo corregido de 6 a 8)',
+      () {
+        expect(puntosPorZonaCompleta, {
+          ColorZona.amarillo: 8,
+          ColorZona.verde: 4,
+          ColorZona.morado: 6,
+          ColorZona.azul: 7,
+          ColorZona.rojo: 6,
+        });
+      },
+    );
+  });
+
+  group('configuracionesOficiales / configuracionPorId: acceso centralizado por id', () {
+    test('configuracionesOficiales tiene exactamente las 4 configuraciones, en orden', () {
+      expect(configuracionesOficiales.map((n) => n.id).toList(), [1, 2, 3, 4]);
+      expect(configuracionesOficiales, [
+        configuracionNivel1,
+        configuracionNivel2,
+        configuracionNivel3,
+        configuracionNivel4,
+      ]);
+    });
+
+    test('configuracionPorId devuelve la configuracion correcta para cada id oficial', () {
+      expect(configuracionPorId(1), configuracionNivel1);
+      expect(configuracionPorId(2), configuracionNivel2);
+      expect(configuracionPorId(3), configuracionNivel3);
+      expect(configuracionPorId(4), configuracionNivel4);
+    });
+
+    test('configuracionPorId devuelve null para un id inexistente, no lanza error', () {
+      expect(configuracionPorId(99), isNull);
+      expect(configuracionPorId(0), isNull);
     });
   });
 }

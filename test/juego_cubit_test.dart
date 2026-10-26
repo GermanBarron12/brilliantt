@@ -13,17 +13,62 @@ import 'package:brilliant/zonas_tablero.dart';
 
 /// Configuración sintética de prueba, exclusiva de este archivo: un
 /// tablero 2x2 de una sola zona azul ("todos iguales"), con una sola
-/// estrella. No representa ningún mapa oficial, solo sirve para probar
-/// que JuegoCubit/JuegoEstado usan la configuración recibida y no los
-/// globales fijos de nivel 1.
+/// estrella. El layout NO representa ningún mapa oficial (es 2x2, no 7x7):
+/// solo sirve para probar que JuegoCubit/JuegoEstado usan las zonas y los
+/// nombres de la configuración recibida, no los globales fijos de nivel 1
+/// (`zonasNivel1`/`nombresZonaNivel1`).
+///
+/// El id SÍ es el real de nivel 1 (azul tiene puntuación individual
+/// definida ahí: 7) para que las pruebas que completan esta zona sintética
+/// puedan calcular un puntaje válido sin lanzar una excepción — ningún id
+/// inventado tiene entradas en `puntuacionIndividualPorNivel` desde que la
+/// Etapa 6 la hizo obligatoria para cualquier zona que se completa.
 final _nivelSintetico = ConfiguracionNivel(
-  id: 99,
+  id: 1,
   nombre: 'Nivel de prueba (azul)',
   layout: const [
     [ColorZona.azul, ColorZona.azul],
     [ColorZona.azul, ColorZona.azul],
   ],
   casillasEstrella: const [PosicionCasilla(0, 0)],
+);
+
+/// Nivel sintético de una sola zona blanca (1x2, "todos iguales"). El id
+/// es 2 (no uno inventado como el resto de los niveles sintéticos de este
+/// archivo) A PROPÓSITO: la puntuación individual de blanco depende del
+/// nivel (3 en nivel 2, 8 en nivel 3), así que para probar que se otorga
+/// el valor real y correcto hace falta un id real de la tabla oficial. El
+/// layout en sí sigue siendo sintético, no una transcripción del mapa real
+/// de nivel 2.
+final _nivelBlanco = ConfiguracionNivel(
+  id: 2,
+  nombre: 'Nivel de prueba (blanco, id real de nivel 2 para la puntuación)',
+  layout: const [
+    [ColorZona.blanco, ColorZona.blanco],
+  ],
+  casillasEstrella: const [PosicionCasilla(0, 0)],
+);
+
+/// Nivel sintético con DOS zonas naranjas separadas (igual estructura que
+/// el nivel 4 real): una fila superior (solo 4-6) y una fila inferior
+/// (solo 1-3), separadas por una fila morada para que el flood fill las
+/// mantenga como zonas distintas. El id es 4 por el mismo motivo que en
+/// [_nivelBlanco]: naranja solo tiene puntuación individual definida en
+/// nivel 4. Sirve para probar que completar una zona no afecta a la otra
+/// y que cada una otorga el puntaje real (6).
+final _nivelNaranjaDoble = ConfiguracionNivel(
+  id: 4,
+  nombre: 'Nivel de prueba (naranja superior e inferior, id real de nivel 4 para la puntuación)',
+  layout: const [
+    [ColorZona.naranja, ColorZona.naranja],
+    [ColorZona.morado, ColorZona.morado],
+    [ColorZona.naranja, ColorZona.naranja],
+  ],
+  casillasEstrella: const [PosicionCasilla(0, 0), PosicionCasilla(2, 0)],
+  tiposExplicitosPorCasilla: {
+    PosicionCasilla(0, 0): const TipoNaranjaSuperior(),
+    PosicionCasilla(2, 0): const TipoNaranjaInferior(),
+  },
 );
 
 /// ProveedorJugador de prueba, para confirmar que JuegoCubit no depende de
@@ -316,7 +361,7 @@ void main() {
       }
     });
 
-    test('al completarse otorga exactamente 6 puntos, una sola vez', () {
+    test('al completarse otorga exactamente 8 puntos (valor oficial de amarillo en nivel 1), una sola vez', () {
       final tablero = tableroVacio();
       const valores = [1, 2, 3, 4, 5];
       for (var i = 0; i < casillasAmarillas.length; i++) {
@@ -325,7 +370,7 @@ void main() {
       }
 
       final estado = JuegoEstado(tablero: tablero);
-      expect(estado.puntaje, 6);
+      expect(estado.puntaje, 8);
       expect(estado.puntaje, estado.puntaje); // leer de nuevo no duplica
     });
 
@@ -818,9 +863,126 @@ void main() {
         cubit.tocarCasilla(const PosicionCasilla(6, 6));
 
         final evento = cubit.state.eventosPuntuacion.single;
-        expect(evento.puntosObtenidos, 6);
+        expect(evento.puntosObtenidos, 8); // valor oficial de amarillo en nivel 1 (Etapa 6)
         expect(evento.colorZona, ColorZona.amarillo);
         expect(evento.nombreZona, 'Zona Amarillo');
+        cubit.close();
+      });
+    });
+
+    group('EventoPuntuacion: puntuación individual real de blanco y naranja (por nivel)', () {
+      test('completar una zona blanca en nivel 2 otorga y notifica 3 puntos (valor oficial, no 0)', () {
+        final tablero = [
+          [2, null],
+        ];
+
+        final cubit = JuegoCubit(tablero, nivel: _nivelBlanco, random: _DadosFijos([2, 2]));
+        cubit.tirarDados();
+        cubit.seleccionarDado(2);
+        cubit.tocarCasilla(const PosicionCasilla(0, 0)); // ancla
+        cubit.tocarCasilla(const PosicionCasilla(0, 1)); // completa la zona blanca
+
+        final evento = cubit.state.eventosPuntuacion.single;
+        expect(evento.colorZona, ColorZona.blanco);
+        expect(evento.puntosObtenidos, 3);
+        expect(cubit.state.puntaje, 3);
+        cubit.close();
+      });
+
+      test('completar la zona naranja superior (nivel 4) otorga y notifica 6 puntos (acepta 4-6)', () {
+        final tablero = [
+          [4, null],
+          [null, null],
+          [null, null],
+        ];
+
+        final cubit = JuegoCubit(tablero, nivel: _nivelNaranjaDoble, random: _DadosFijos([4, 5]));
+        cubit.tirarDados();
+        cubit.seleccionarDado(4);
+        cubit.tocarCasilla(const PosicionCasilla(0, 0)); // ancla
+        cubit.tocarCasilla(const PosicionCasilla(0, 1)); // completa la zona naranja superior con un 5
+
+        final evento = cubit.state.eventosPuntuacion.single;
+        expect(evento.colorZona, ColorZona.naranja);
+        expect(evento.puntosObtenidos, 6);
+        expect(cubit.state.puntaje, 6);
+        cubit.close();
+      });
+
+      test('completar la zona naranja inferior (nivel 4) otorga y notifica 6 puntos (acepta 1-3)', () {
+        final tablero = [
+          [null, null],
+          [null, null],
+          [2, null],
+        ];
+
+        final cubit = JuegoCubit(tablero, nivel: _nivelNaranjaDoble, random: _DadosFijos([2, 3]));
+        cubit.tirarDados();
+        cubit.seleccionarDado(2);
+        cubit.tocarCasilla(const PosicionCasilla(2, 0)); // ancla
+        cubit.tocarCasilla(const PosicionCasilla(2, 1)); // completa la zona naranja inferior con un 3
+
+        final evento = cubit.state.eventosPuntuacion.single;
+        expect(evento.colorZona, ColorZona.naranja);
+        expect(evento.puntosObtenidos, 6);
+        expect(cubit.state.puntaje, 6);
+        cubit.close();
+      });
+
+      test(
+        'dos zonas del mismo color (naranja) en posiciones distintas siguen siendo independientes: '
+        'completar la superior no completa ni puntua la inferior, aunque las dos valgan 6',
+        () {
+          final tablero = [
+            [4, null],
+            [null, null],
+            [null, null],
+          ];
+
+          final cubit = JuegoCubit(tablero, nivel: _nivelNaranjaDoble, random: _DadosFijos([4, 5]));
+          cubit.tirarDados();
+          cubit.seleccionarDado(4);
+          cubit.tocarCasilla(const PosicionCasilla(0, 0));
+          cubit.tocarCasilla(const PosicionCasilla(0, 1));
+
+          // Solo se otorgo un evento (el de la zona superior, 6 puntos); la
+          // inferior sigue vacia e incompleta, y no genero ningun evento
+          // propio ni sumo sus propios 6 puntos.
+          expect(cubit.state.eventosPuntuacion.length, 1);
+          expect(cubit.state.valorEn(const PosicionCasilla(2, 0)), isNull);
+          expect(cubit.state.valorEn(const PosicionCasilla(2, 1)), isNull);
+
+          // Leer el puntaje de nuevo no duplica ni cambia nada (es siempre
+          // recalculado desde el tablero, nunca acumulado aparte): sigue
+          // siendo 6 (solo la superior), no 12.
+          expect(cubit.state.puntaje, cubit.state.puntaje);
+          expect(cubit.state.puntaje, 6);
+          cubit.close();
+        },
+      );
+
+      test('completar las DOS zonas naranjas (superior e inferior) suma 12 puntos en total', () {
+        final tablero = [
+          [4, null],
+          [null, null],
+          [2, null],
+        ];
+
+        final cubit = JuegoCubit(tablero, nivel: _nivelNaranjaDoble, random: _DadosFijos([4, 5, 2, 3]));
+        cubit.tirarDados();
+        cubit.seleccionarDado(4);
+        cubit.tocarCasilla(const PosicionCasilla(0, 0));
+        cubit.tocarCasilla(const PosicionCasilla(0, 1)); // completa la superior: +6
+
+        expect(cubit.state.puntaje, 6);
+
+        cubit.tirarDados();
+        cubit.seleccionarDado(2);
+        cubit.tocarCasilla(const PosicionCasilla(2, 0));
+        cubit.tocarCasilla(const PosicionCasilla(2, 1)); // completa la inferior: +6 más
+
+        expect(cubit.state.eventosPuntuacion.length, 2);
+        expect(cubit.state.puntaje, 12);
         cubit.close();
       });
     });
