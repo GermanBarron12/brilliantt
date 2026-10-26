@@ -18,8 +18,11 @@ String idDeZona(ZonaTablero zona) {
 /// considerarla "central" en ese eje). Combina el eje vertical y el
 /// horizontal; da cadena vacía si la zona es central en los dos ejes.
 /// [filas]/[columnas] son el tamaño de la grilla del nivel al que
-/// pertenece la zona (no asume el tamaño de nivel 1).
-String _descriptorDePosicion(ZonaTablero zona, {required int filas, required int columnas}) {
+/// pertenece la zona (no asume el tamaño de nivel 1). Pública porque
+/// también la usa `ReglasZonaPanel` para distinguir, en su título, dos
+/// zonas del mismo color con reglas distintas (como las dos zonas
+/// naranjas del nivel 4).
+String descriptorDePosicionDeZona(ZonaTablero zona, {required int filas, required int columnas}) {
   final filaPromedio =
       zona.casillas.map((c) => c.fila).reduce((a, b) => a + b) / zona.casillas.length;
   final columnaPromedio =
@@ -53,7 +56,7 @@ String _nombreDeZona(
   final base = 'Zona ${nombreDeColor(zona.color)}';
   if (cantidadDeZonasDelMismoColor <= 1) return base;
 
-  final descriptor = _descriptorDePosicion(zona, filas: filas, columnas: columnas);
+  final descriptor = descriptorDePosicionDeZona(zona, filas: filas, columnas: columnas);
   return descriptor.isEmpty ? base : '$base $descriptor';
 }
 

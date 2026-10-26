@@ -47,18 +47,36 @@ void main() {
       expect(find.text('Blanco'), findsOneWidget);
     });
 
-    testWidgets('nivel 4: las dos zonas naranjas se muestran como tarjetas separadas, con reglas distintas', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        MaterialApp(home: Scaffold(body: ReglasZonaPanel(zonas: configuracionNivel4.zonas))),
-      );
+    testWidgets(
+      'nivel 4: las dos zonas naranjas se muestran como tarjetas separadas, con reglas y '
+      'posición distintas en el título (para saber a cuál zona del tablero corresponde cada una)',
+      (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(home: Scaffold(body: ReglasZonaPanel(zonas: configuracionNivel4.zonas))),
+        );
 
-      expect(find.text('Naranja'), findsNWidgets(2));
-      expect(find.text('Solo números del 4 al 6'), findsOneWidget);
-      expect(find.text('Solo números del 1 al 3'), findsOneWidget);
-      expect(find.text('Blanco'), findsNothing); // no existe en nivel 4
-    });
+        // Ya no ambas dicen simplemente "Naranja": cada título indica su
+        // posición real en el tablero (fila 0 = superior, fila 6 = inferior).
+        expect(find.text('Naranja'), findsNothing);
+        expect(find.text('Naranja superior'), findsOneWidget);
+        expect(find.text('Naranja inferior'), findsOneWidget);
+        expect(find.text('Solo números del 4 al 6'), findsOneWidget);
+        expect(find.text('Solo números del 1 al 3'), findsOneWidget);
+        expect(find.text('Blanco'), findsNothing); // no existe en nivel 4
+      },
+    );
+
+    testWidgets(
+      'nivel 1: rojo tiene 2 zonas con la MISMA regla, asi que su titulo sigue siendo "Rojo" (sin posición)',
+      (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(home: Scaffold(body: ReglasZonaPanel(zonas: configuracionNivel1.zonas))),
+        );
+
+        expect(find.text('Rojo'), findsOneWidget);
+        expect(find.textContaining('Rojo '), findsNothing); // no "Rojo superior" ni similar
+      },
+    );
 
     testWidgets('no genera overflow en un ancho reducido (nivel 4, el que mas tarjetas tiene)', (tester) async {
       tester.view.physicalSize = const Size(320, 800);

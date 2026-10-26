@@ -8,6 +8,7 @@ import 'package:brilliant/configuracion_nivel.dart';
 import 'package:brilliant/dado_widget.dart';
 import 'package:brilliant/juego_cubit.dart';
 import 'package:brilliant/juego_screen.dart';
+import 'package:brilliant/reglas_zona_panel.dart';
 import 'package:brilliant/tablero_layout.dart';
 import 'package:brilliant/tablero_widget.dart';
 
@@ -48,6 +49,41 @@ void main() {
 
         expect(find.text('Tira los dados para empezar.'), findsOneWidget);
         expect(find.byType(DadoWidget), findsNothing);
+      });
+    });
+
+    group('reglas de las zonas: bajo pedido, no siempre visibles', () {
+      testWidgets('el panel de reglas no esta en pantalla de entrada; hay un boton para abrirlo', (
+        tester,
+      ) async {
+        await tester.pumpWidget(_pantallaDePrueba([1, 6]));
+
+        expect(find.byType(ReglasZonaPanel), findsNothing);
+        expect(find.byTooltip('Reglas de las zonas'), findsOneWidget);
+      });
+
+      testWidgets('tocar el boton de reglas abre un dialogo con el panel de reglas del nivel activo', (
+        tester,
+      ) async {
+        await tester.pumpWidget(_pantallaDePrueba([1, 6]));
+
+        await tester.tap(find.byTooltip('Reglas de las zonas'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Reglas de las zonas'), findsOneWidget);
+        expect(find.byType(ReglasZonaPanel), findsOneWidget);
+        expect(find.text('Rojo'), findsOneWidget); // una de las reglas de nivel 1
+      });
+
+      testWidgets('Cerrar quita el dialogo y el panel vuelve a no estar en pantalla', (tester) async {
+        await tester.pumpWidget(_pantallaDePrueba([1, 6]));
+
+        await tester.tap(find.byTooltip('Reglas de las zonas'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.widgetWithText(TextButton, 'Cerrar'));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(ReglasZonaPanel), findsNothing);
       });
     });
 

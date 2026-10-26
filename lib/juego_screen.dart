@@ -34,7 +34,16 @@ class _JuegoScreenState extends State<JuegoScreen> {
   Widget build(BuildContext context) {
     final nivel = context.read<JuegoCubit>().configuracionNivel;
     return Scaffold(
-      appBar: AppBar(title: const Text('Brilliant · Partida')),
+      appBar: AppBar(
+        title: const Text('Brilliant · Partida'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.info_outline),
+            tooltip: 'Reglas de las zonas',
+            onPressed: () => _mostrarReglas(context),
+          ),
+        ],
+      ),
       body: BlocConsumer<JuegoCubit, JuegoEstado>(
         listenWhen: (previo, actual) =>
             actual.eventosPuntuacion.length != previo.eventosPuntuacion.length,
@@ -64,8 +73,6 @@ class _JuegoScreenState extends State<JuegoScreen> {
                   seleccionHabilitada: estado.dados != null && estado.ancla == null,
                   onSeleccionar: cubit.seleccionarDado,
                 ),
-                const SizedBox(height: 12),
-                ReglasZonaPanel(zonas: estado.zonas),
                 const SizedBox(height: 12),
                 Expanded(
                   child: Center(
@@ -152,5 +159,30 @@ class _JuegoScreenState extends State<JuegoScreen> {
     if (confirmar == true) {
       cubit.saltarTurno();
     }
+  }
+
+  /// Muestra las reglas de las zonas del nivel activo en un diálogo, bajo
+  /// pedido (botón de la barra superior) en vez de ocupar siempre espacio
+  /// fijo en la pantalla de juego. Lee las zonas directo del `JuegoCubit`
+  /// al tocar el botón, no de una copia guardada en `build`: así siempre
+  /// refleja el estado real de la partida, aunque esta lista de zonas en
+  /// particular no cambia durante la partida (solo su contenido).
+  void _mostrarReglas(BuildContext context) {
+    final zonas = context.read<JuegoCubit>().state.zonas;
+    showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Reglas de las zonas'),
+          content: SizedBox(width: double.maxFinite, child: ReglasZonaPanel(zonas: zonas)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cerrar'),
+            ),
+          ],
+        );
+      },
+    );
   }
 }
