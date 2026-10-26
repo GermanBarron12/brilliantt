@@ -106,10 +106,19 @@ class _Casilla extends StatelessWidget {
                   ),
                 ),
               if (esEstrella)
-                const Positioned(
+                Positioned(
                   right: 2,
                   bottom: 2,
-                  child: Icon(Icons.star, color: Colors.white, size: 14),
+                  // Fondo circular oscuro semitransparente detrás del
+                  // ícono: sin esto, la estrella blanca es casi invisible
+                  // en las casillas de zona blanca (mismo tono que el
+                  // ícono), y queda igual de legible en el resto de los
+                  // colores.
+                  child: Container(
+                    padding: const EdgeInsets.all(1),
+                    decoration: const BoxDecoration(color: Colors.black38, shape: BoxShape.circle),
+                    child: const Icon(Icons.star, color: Colors.white, size: 12),
+                  ),
                 ),
               if (repetida)
                 const Positioned(
@@ -127,7 +136,9 @@ class _Casilla extends StatelessWidget {
   Border? _borde() {
     if (repetida) return Border.all(color: Colors.black, width: 4);
     if (seleccionada) return Border.all(color: Colors.black, width: 3);
-    if (esEstrella) return Border.all(color: Colors.white, width: 2);
+    // Negro semitransparente (no blanco): el blanco se perdía contra las
+    // casillas de zona blanca, mismo problema que el ícono de arriba.
+    if (esEstrella) return Border.all(color: Colors.black45, width: 2);
     return null;
   }
 }
