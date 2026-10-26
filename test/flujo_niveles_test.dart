@@ -10,6 +10,21 @@ import 'package:brilliant/tablero_layout.dart';
 import 'package:brilliant/tablero_widget.dart';
 import 'package:brilliant/zonas_tablero.dart';
 
+/// Para la mayoría de los niveles, cualquier permutación de 1 a 6 sirve:
+/// ninguna de sus zonas rechaza un número por sí solo en una casilla
+/// vacía. Nivel 4 es la excepción: sus dos zonas naranjas (superior e
+/// inferior, mismo orden que configuracionNivel4.casillasEstrella) solo
+/// aceptan 4-6 y 1-3 respectivamente, incluso como primera casilla de su
+/// zona, así que necesitan una asignación que lo respete.
+List<int> _numerosValidosParaEstrellas(int nivelId) {
+  if (nivelId == 4) {
+    // Orden de las estrellas: naranja superior, morado, rojo, amarillo,
+    // azul, naranja inferior (ver lib/niveles_oficiales.dart).
+    return [4, 2, 3, 5, 6, 1];
+  }
+  return [1, 2, 3, 4, 5, 6];
+}
+
 void main() {
   group('Flujo completo: selector de nivel -> numeros iniciales -> partida (los 4 niveles)', () {
     for (final nivel in configuracionesOficiales) {
@@ -20,15 +35,17 @@ void main() {
         await tester.pumpAndSettle();
 
         // Pantalla de números iniciales: una casilla por cada estrella del
-        // nivel elegido, numeradas 1..6 sin repetir.
+        // nivel elegido, numeradas sin repetir y respetando la regla de
+        // cada zona (las dos naranjas del nivel 4 exigen un rango fijo).
         expect(nivel.casillasEstrella.length, 6);
+        final numeros = _numerosValidosParaEstrellas(nivel.id);
         for (var i = 0; i < nivel.casillasEstrella.length; i++) {
           final posicion = nivel.casillasEstrella[i];
           final indice = posicion.fila * nivel.columnas + posicion.columna;
 
           await tester.tap(find.byType(GestureDetector).at(indice));
           await tester.pumpAndSettle();
-          await tester.tap(find.widgetWithText(OutlinedButton, '${i + 1}'));
+          await tester.tap(find.widgetWithText(OutlinedButton, '${numeros[i]}'));
           await tester.pumpAndSettle();
         }
 
@@ -50,12 +67,19 @@ void main() {
             zonas.map((z) => z.casillas.toSet()).toSet();
         expect(comoConjunto(cubit.state.zonas), comoConjunto(nivel.zonas));
 
-        // El panel de reglas muestra la tarjeta de blanco/naranja cuando
-        // corresponde, y no cuando no corresponde.
+        // El panel de reglas ya no está siempre visible: hay que abrirlo
+        // con el botón de la barra superior. Una vez abierto, muestra la
+        // tarjeta de blanco/naranja cuando corresponde, y no cuando no
+        // corresponde (naranja, cuando existe, aparece como dos tarjetas
+        // distinguidas por posición: "Naranja superior"/"Naranja inferior").
+        await tester.tap(find.byTooltip('Reglas de las zonas'));
+        await tester.pumpAndSettle();
+
         final tieneBlanco = nivel.zonas.any((z) => z.color.name == 'blanco');
         final tieneNaranja = nivel.zonas.any((z) => z.color.name == 'naranja');
         expect(find.text('Blanco'), tieneBlanco ? findsOneWidget : findsNothing);
-        expect(find.text('Naranja'), tieneNaranja ? findsNWidgets(2) : findsNothing);
+        expect(find.text('Naranja superior'), tieneNaranja ? findsOneWidget : findsNothing);
+        expect(find.text('Naranja inferior'), tieneNaranja ? findsOneWidget : findsNothing);
       });
     }
   });

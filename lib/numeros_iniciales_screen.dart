@@ -21,7 +21,7 @@ class NumerosInicialesScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final nivel = configuracionNivel ?? configuracionNivel1;
     return BlocProvider(
-      create: (_) => NumerosInicialesCubit(nivel.casillasEstrella),
+      create: (_) => NumerosInicialesCubit(nivel.casillasEstrella, nivel.zonas),
       child: _NumerosInicialesVista(nivel: nivel),
     );
   }
@@ -58,7 +58,8 @@ class _NumerosInicialesVista extends StatelessWidget {
                         resaltadas: const {},
                         repetidas: {
                           for (var i = 0; i < nivel.casillasEstrella.length; i++)
-                            if (estado.casillaRepetida(i)) nivel.casillasEstrella[i],
+                            if (estado.casillaRepetida(i) || estado.casillaInvalidaParaSuZona(i))
+                              nivel.casillasEstrella[i],
                         },
                         seleccionada: null,
                         onTap: (posicion) => _alTocarCasilla(context, posicion),
@@ -70,6 +71,14 @@ class _NumerosInicialesVista extends StatelessWidget {
                   const SizedBox(height: 8),
                   const Text(
                     'Los números no pueden repetirse.',
+                    style: TextStyle(color: Colors.red),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+                if (estado.tieneInvalidosDeZona) ...[
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Hay números que no respetan la regla de su zona.',
                     style: TextStyle(color: Colors.red),
                     textAlign: TextAlign.center,
                   ),
@@ -87,28 +96,46 @@ class _NumerosInicialesVista extends StatelessWidget {
     );
   }
 
-  /// Solo las casillas con estrella reciben número.
+  /// Solo las casillas con estrella reciben número. El diálogo solo deja
+  /// elegir los números que respetan la regla de la zona de esa estrella
+  /// (por ejemplo, una zona naranja superior solo ofrece 4, 5 y 6): el
+  /// resto de los botones quedan deshabilitados, no ocultos, para que se
+  /// note que existen pero no están permitidos ahí.
   Future<void> _alTocarCasilla(BuildContext context, PosicionCasilla posicion) async {
     final indice = nivel.casillasEstrella.indexOf(posicion);
     if (indice == -1) return;
 
     final cubit = context.read<NumerosInicialesCubit>();
+    final zona = nivel.zonas.firstWhere((z) => z.casillas.contains(posicion));
     final elegido = await showDialog<int>(
       context: context,
       builder: (context) {
         return AlertDialog(
           title: const Text('Elige un número'),
-          content: Row(
+          content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              for (var numero = 1; numero <= 6; numero++)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.of(context).pop(numero),
-                    child: Text('$numero'),
-                  ),
-                ),
+              Text(
+                zona.tipo.descripcion,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (var numero = 1; numero <= 6; numero++)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: OutlinedButton(
+                        onPressed: cubit.state.numeroValidoEnZona(indice, numero)
+                            ? () => Navigator.of(context).pop(numero)
+                            : null,
+                        child: Text('$numero'),
+                      ),
+                    ),
+                ],
+              ),
             ],
           ),
         );
