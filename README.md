@@ -7,7 +7,9 @@ aviso visual al completar una zona.
 
 ## Cómo correr el proyecto
 
-Requiere Node.js 22.5+ y Flutter SDK instalados.
+Requiere Flutter SDK instalado (incluye el Dart SDK que tambien usa el
+servidor) y la libreria nativa de SQLite disponible en el sistema (ver
+[`server/README.md`](server/README.md)).
 
 Instalar dependencias (una vez):
 
@@ -21,11 +23,11 @@ Terminal 1 (servidor):
 
 ```powershell
 cd server
-npm run build
-$env:CORS_ORIGIN="http://localhost:5173"; npm start
+dart run bin/migrate.dart
+$env:CORS_ORIGIN="http://localhost:5173"; dart run bin/server.dart
 ```
 
-cmd: `set CORS_ORIGIN=http://localhost:5173&& npm start` (sin espacio antes de `&&`)
+cmd: `set CORS_ORIGIN=http://localhost:5173&& dart run bin/server.dart` (sin espacio antes de `&&`)
 
 Terminal 2 (app):
 

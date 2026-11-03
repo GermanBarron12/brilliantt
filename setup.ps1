@@ -2,7 +2,7 @@ $ErrorActionPreference = "Stop"
 $raiz = $PSScriptRoot
 
 Push-Location (Join-Path $raiz "server")
-npm install
+dart pub get
 Pop-Location
 
 Push-Location $raiz

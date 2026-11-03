@@ -4,48 +4,53 @@ Servidor independiente de autenticacion para Brilliant (registro, login,
 identidad, logout, borrado de cuenta). No implementa logica de partidas,
 multijugador, salas, turnos ni puntuaciones.
 
+Escrito en Dart (antes era Node.js/TypeScript); el contrato HTTP, la base
+SQLite y el modelo de seguridad se mantuvieron igual durante la migracion.
+
 ## Requisitos
 
-- Node.js **>= 22.5.0** (ver `engines` en `package.json`).
+- Dart SDK **>= 3.9.0** (el mismo SDK que usa `flutter`, no hace falta
+  instalar nada aparte si ya tenes Flutter).
+- La libreria nativa de SQLite disponible en el sistema (paquete
+  `package:sqlite3`, bindings FFI sobre `libsqlite3`):
+  - Windows: `winget install SQLite.SQLite` (o descargar `sqlite3.dll` desde
+    sqlite.org y dejarlo en el `PATH`).
+  - macOS/Linux: suele venir preinstalada; si no, `brew install sqlite3` o
+    el paquete `libsqlite3-dev`/`sqlite-libs` de tu distro.
 
 ## Scripts
 
 ```bash
-npm install
-npm run migrate   # crea/actualiza la base SQLite
-npm run dev       # servidor de desarrollo (tsx watch)
-npm run build     # compila a dist/
-npm start         # ejecuta el build compilado (dist/server.js)
-npm test          # vitest run
+dart pub get                 # instala dependencias
+dart run bin/migrate.dart    # crea/actualiza la base SQLite
+dart run bin/server.dart     # levanta el servidor (puerto 3000 por defecto)
+dart test                    # corre la suite de tests
 ```
 
-Configurar variables de entorno copiando `.env.example` a `.env`.
+Configurar variables de entorno copiando `.env.example` a `.env` (Dart lee
+`Platform.environment`, asi que hay que exportarlas en la terminal antes de
+correr el servidor, igual que antes).
 
-## Persistencia: `node:sqlite`
+## Persistencia: `package:sqlite3`
 
-Este servidor usa el modulo **nativo** de Node `node:sqlite`
-(`DatabaseSync`) para toda la persistencia, en lugar de un paquete externo
-como `better-sqlite3`.
+Este servidor usa el paquete oficial `package:sqlite3` (bindings FFI sobre
+la libreria nativa de SQLite) para toda la persistencia, sin ORM: todas las
+consultas son SQL crudo (ver `lib/db/connection.dart` y `lib/auth/service.dart`).
 
-- Requiere **Node.js >= 22.5.0** (version en la que `node:sqlite` se
-  incorporo al runtime). Se eligio para evitar depender de un binario
-  nativo compilado con node-gyp/Visual Studio, que no esta disponible en
-  todos los entornos de desarrollo.
-- Al momento de escribir esto, `node:sqlite` sigue marcado como
-  **experimental** en la documentacion oficial de Node.js. Su API puede
-  cambiar en versiones futuras del runtime; antes de actualizar la version
-  minima de Node en produccion, revisar el changelog de `node:sqlite` por
-  cambios incompatibles.
-- `DatabaseSync` no expone un helper de transaccion como el `.transaction()`
-  de `better-sqlite3`. Las operaciones que requieren atomicidad (por
-  ejemplo, `eliminarCuenta`, que borra el usuario y sus sesiones en
-  cascada) se envuelven manualmente en `BEGIN` / `COMMIT` / `ROLLBACK`
-  (ver `src/auth/service.ts`).
+- A diferencia de Node (que trae `node:sqlite` embebido desde la version
+  22.5), en Dart hace falta que la libreria nativa de SQLite este instalada
+  en el sistema donde corre el servidor (ver Requisitos).
+- No hay helper de transaccion de alto nivel: las operaciones que requieren
+  atomicidad (por ejemplo, `eliminarCuenta`, que borra el usuario y sus
+  sesiones en cascada) se envuelven manualmente en `BEGIN` / `COMMIT` /
+  `ROLLBACK` (ver `lib/auth/service.dart`).
 
 ## Rate limiting
 
-El limitador de intentos de login y registro (`express-rate-limit`, ver
-`src/auth/middleware.ts`) guarda sus contadores **en memoria del proceso**.
+El limitador de intentos de login y registro (`lib/auth/middleware.dart`)
+guarda sus contadores **en memoria del proceso**, con una ventana deslizante
+implementada a mano (no existe un paquete equivalente a
+`express-rate-limit` para `shelf`).
 
 Esto significa que:
 
@@ -55,8 +60,7 @@ Esto significa que:
   instancias**, cada instancia tendra su propio contador independiente, lo
   que debilita el limite real (un atacante podria repartir intentos entre
   instancias). En ese escenario hay que migrar el store del rate limiter a
-  un backend compartido entre instancias (por ejemplo Redis, via
-  `rate-limit-redis` u otro store compatible con `express-rate-limit`).
+  un backend compartido entre instancias (por ejemplo Redis).
 
 ## Registro en un solo paso
 
@@ -86,11 +90,14 @@ completo y ningun navegador puede llamar a la API.
 
 ## Seguridad
 
-- Contrasenas hasheadas con Argon2id (`@node-rs/argon2`), nunca en claro.
+- Contrasenas hasheadas con Argon2id (`package:cryptography`), nunca en
+  claro.
 - Tokens de sesion aleatorios (32 bytes), guardados en la base solo como
   hash SHA-256.
-- Validacion de entrada con Zod.
-- Cabeceras de seguridad con Helmet.
+- Validacion de entrada manual (reglas de nombre de usuario y contrasena en
+  `lib/auth/schemas.dart`).
+- Cabeceras de seguridad basicas (equivalentes a Helmet) en todas las
+  respuestas.
 - Los manejadores de error no exponen trazas de pila ni mensajes internos
   de la base de datos.
 - En produccion, servir siempre detras de HTTPS (el servidor asume TLS

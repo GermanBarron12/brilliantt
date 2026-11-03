@@ -1,8 +1,8 @@
-// Se mantiene como modulo TypeScript (no un archivo .sql suelto) para que
-// `tsc` lo incluya en `dist/` igual que el resto del codigo: un .sql aparte
-// no se copia al build y el servidor compilado fallaba al migrar (bug real
-// encontrado al probar `node dist/server.js`, ver informe de la Fase 2).
-export const migracion001Init = `
+// ignore_for_file: file_names
+// (se mantiene el nombre "001_init.dart" para que las migraciones futuras
+// se ordenen igual que antes, con un numero de secuencia al frente).
+/// Mismo esquema SQL que usaba el backend en Node/TypeScript.
+const String migracion001Init = '''
 CREATE TABLE IF NOT EXISTS usuarios (
   id              TEXT PRIMARY KEY,
   nombre_usuario  TEXT NOT NULL UNIQUE,
@@ -23,4 +23,4 @@ CREATE TABLE IF NOT EXISTS sesiones (
 
 CREATE INDEX IF NOT EXISTS idx_sesiones_usuario ON sesiones(usuario_id);
 CREATE INDEX IF NOT EXISTS idx_sesiones_token_hash ON sesiones(token_hash);
-`;
+''';
