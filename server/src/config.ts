@@ -8,12 +8,6 @@ function numeroDeEntorno(nombre: string, porDefecto: number): number {
   return parsed;
 }
 
-function booleanoDeEntorno(nombre: string, porDefecto: boolean): boolean {
-  const valor = process.env[nombre];
-  if (valor === undefined) return porDefecto;
-  return valor === 'true';
-}
-
 const isProduction = process.env.NODE_ENV === 'production';
 
 export const config = {
@@ -28,26 +22,14 @@ export const config = {
     windowMs: numeroDeEntorno('REGISTER_RATE_LIMIT_WINDOW_MS', 60 * 60 * 1000),
     maxAttempts: numeroDeEntorno('REGISTER_RATE_LIMIT_MAX_ATTEMPTS', 5),
   },
-  /** Cuantas veces se puede (re)solicitar un token de verificacion para el mismo correo en la ventana. */
-  registerResendLimit: {
-    windowMs: numeroDeEntorno('REGISTER_RESEND_LIMIT_WINDOW_MS', 60 * 60 * 1000),
-    maxAttempts: numeroDeEntorno('REGISTER_RESEND_LIMIT_MAX_ATTEMPTS', 3),
-  },
-  verifyRateLimit: {
-    windowMs: numeroDeEntorno('VERIFY_RATE_LIMIT_WINDOW_MS', 15 * 60 * 1000),
-    maxAttempts: numeroDeEntorno('VERIFY_RATE_LIMIT_MAX_ATTEMPTS', 10),
-  },
-  verificationTokenTtlMinutes: numeroDeEntorno('VERIFICATION_TOKEN_TTL_MINUTES', 30),
-  verificationTicketTtlMinutes: numeroDeEntorno('VERIFICATION_TICKET_TTL_MINUTES', 15),
-  /** Cada cuanto se ejecuta el barrido periodico de verificaciones vencidas, en ms. */
-  verificationCleanupIntervalMs: numeroDeEntorno('VERIFICATION_CLEANUP_INTERVAL_MS', 60 * 60 * 1000),
   isProduction,
   /**
-   * El mecanismo de entrega de tokens de verificacion para desarrollo local
-   * exige AMBAS condiciones (no alcanza con una sola): que el entorno no
-   * sea de produccion, y que este flag este prendido explicitamente. Asi,
-   * un `NODE_ENV` mal configurado en un entorno publico no alcanza por si
-   * solo para exponer tokens reales.
+   * Origen permitido para CORS (por ejemplo `http://localhost:5173`, donde
+   * corre `flutter run -d chrome` en desarrollo). `null` por defecto:
+   * ningun navegador puede llamar a la API salvo que se configure
+   * explicitamente. Los clientes nativos (Android/iOS) no pasan por CORS,
+   * asi que esto solo hace falta para probar o servir la app en un
+   * navegador.
    */
-  enableDevVerificationToken: !isProduction && booleanoDeEntorno('ENABLE_DEV_VERIFICATION_TOKEN', false),
+  corsOrigin: process.env.CORS_ORIGIN ?? null,
 };

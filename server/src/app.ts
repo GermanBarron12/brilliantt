@@ -1,6 +1,7 @@
 import express, { type Express, type NextFunction, type Request, type Response } from 'express';
 import helmet from 'helmet';
 import type { DatabaseSync } from 'node:sqlite';
+import { config } from './config.js';
 import { crearRutasAuth } from './auth/routes.js';
 import { AuthError } from './auth/errors.js';
 import { AuthService } from './auth/service.js';
@@ -12,6 +13,20 @@ export function crearApp(db: DatabaseSync): Express {
   app.disable('x-powered-by');
   app.use(helmet());
   app.use(express.json({ limit: '10kb' }));
+
+  if (config.corsOrigin) {
+    const origin = config.corsOrigin;
+    app.use((req: Request, res: Response, next: NextFunction) => {
+      res.header('Access-Control-Allow-Origin', origin);
+      res.header('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS');
+      res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      if (req.method === 'OPTIONS') {
+        res.sendStatus(204);
+        return;
+      }
+      next();
+    });
+  }
 
   app.use('/auth', crearRutasAuth(authService));
 

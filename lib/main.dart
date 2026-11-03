@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-import 'pantalla_inicio.dart';
+import 'auth/api_config.dart';
+import 'auth/auth_gate.dart';
 
 void main() {
   runApp(const BrilliantApp());
@@ -14,7 +15,7 @@ class BrilliantApp extends StatelessWidget {
     return MaterialApp(
       title: 'Brilliant',
       theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple)),
-      home: const PantallaInicio(),
+      home: const AuthGateReal(baseUrl: apiBaseUrl),
     );
   }
 }

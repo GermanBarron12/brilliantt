@@ -1,13 +1,17 @@
 import { z } from 'zod';
 
-/** Normaliza el email a minusculas y recorta espacios antes de validar el formato. */
-const email = z
+/**
+ * Normaliza el nombre de usuario a minusculas y recorta espacios antes de
+ * validar el formato: letras, numeros, guion bajo y punto, 3 a 32
+ * caracteres (sin exigir formato de email).
+ */
+const nombreUsuario = z
   .string()
   .trim()
   .toLowerCase()
-  .min(3)
-  .max(254)
-  .email('Email invalido');
+  .min(3, 'El nombre de usuario debe tener al menos 3 caracteres')
+  .max(32, 'El nombre de usuario no puede tener mas de 32 caracteres')
+  .regex(/^[a-z0-9_.]+$/, 'El nombre de usuario solo puede tener letras, numeros, "_" y "."');
 
 /**
  * Longitud minima de 8 caracteres: el piso recomendado por NIST SP 800-63B
@@ -17,18 +21,14 @@ const email = z
  */
 const password = z.string().min(8).max(256);
 
-/**
- * El registro ya no recibe una contrasena en este primer paso (ver Fase
- * 3.2): se guarda contrasena solo despues de verificar la propiedad del
- * correo, en `completarRegistroSchema`.
- */
 export const registroSchema = z.object({
-  email,
+  nombreUsuario,
+  password,
 });
 export type RegistroInput = z.infer<typeof registroSchema>;
 
 export const loginSchema = z.object({
-  email,
+  nombreUsuario,
   password,
 });
 export type LoginInput = z.infer<typeof loginSchema>;
@@ -37,18 +37,3 @@ export const eliminarCuentaSchema = z.object({
   password,
 });
 export type EliminarCuentaInput = z.infer<typeof eliminarCuentaSchema>;
-
-const secretoAleatorio = z.string().min(16).max(512);
-
-export const verificarCorreoSchema = z.object({
-  email,
-  token: secretoAleatorio,
-});
-export type VerificarCorreoInput = z.infer<typeof verificarCorreoSchema>;
-
-export const completarRegistroSchema = z.object({
-  email,
-  ticket: secretoAleatorio,
-  password,
-});
-export type CompletarRegistroInput = z.infer<typeof completarRegistroSchema>;

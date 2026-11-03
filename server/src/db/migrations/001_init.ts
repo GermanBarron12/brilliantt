@@ -4,13 +4,13 @@
 // encontrado al probar `node dist/server.js`, ver informe de la Fase 2).
 export const migracion001Init = `
 CREATE TABLE IF NOT EXISTS usuarios (
-  id            TEXT PRIMARY KEY,
-  email         TEXT NOT NULL UNIQUE,
-  password_hash TEXT NOT NULL,
-  created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+  id              TEXT PRIMARY KEY,
+  nombre_usuario  TEXT NOT NULL UNIQUE,
+  password_hash   TEXT NOT NULL,
+  created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_usuarios_email ON usuarios(email);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_usuarios_nombre_usuario ON usuarios(nombre_usuario);
 
 CREATE TABLE IF NOT EXISTS sesiones (
   id          TEXT PRIMARY KEY,
