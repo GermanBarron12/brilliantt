@@ -40,6 +40,10 @@ class AuthApi {
     await _request('POST', '/auth/logout', token: token);
   }
 
+  Future<void> eliminarCuenta(String token, String password) async {
+    await _request('DELETE', '/auth/account', body: {'password': password}, token: token);
+  }
+
   ResultadoConSesion _resultadoConSesion(Map<String, dynamic> cuerpo) {
     return ResultadoConSesion(
       token: cuerpo['token'] as String,
@@ -74,6 +78,8 @@ class AuthApi {
           respuesta = await _client.post(uri, headers: headers, body: body == null ? null : jsonEncode(body));
         case 'GET':
           respuesta = await _client.get(uri, headers: headers);
+        case 'DELETE':
+          respuesta = await _client.delete(uri, headers: headers, body: body == null ? null : jsonEncode(body));
         default:
           throw ArgumentError('Metodo HTTP no soportado: $method');
       }

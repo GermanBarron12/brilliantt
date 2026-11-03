@@ -40,8 +40,9 @@ void main() {
       await tester.pumpWidget(MaterialApp(home: AuthGate(repository: repo)));
       await tester.pumpAndSettle();
 
-      expect(find.widgetWithText(ElevatedButton, 'Jugar'), findsOneWidget);
+      expect(find.text('Brilliant · Elegir nivel'), findsOneWidget);
       expect(find.byIcon(Icons.logout), findsOneWidget);
+      expect(find.byIcon(Icons.delete_outline), findsOneWidget);
     });
 
     testWidgets('cerrar sesion vuelve a mostrar el login', (tester) async {
@@ -103,8 +104,72 @@ void main() {
       await tester.tap(find.widgetWithText(ElevatedButton, 'Crear cuenta'));
       await tester.pumpAndSettle();
 
-      expect(find.widgetWithText(ElevatedButton, 'Jugar'), findsOneWidget);
+      expect(find.text('Brilliant · Elegir nivel'), findsOneWidget);
       expect(await store.leer(), 'token-nuevo');
+    });
+
+    testWidgets('eliminar cuenta con la password correcta borra el token y vuelve al login', (tester) async {
+      final store = FakeTokenStore();
+      await store.guardar('token-vigente');
+      final client = MockClient((request) async {
+        if (request.method == 'GET') {
+          return http.Response(
+            jsonEncode({
+              'user': {'id': 'u1', 'nombreUsuario': 'ana', 'createdAt': '2026-01-01T00:00:00.000Z'},
+            }),
+            200,
+          );
+        }
+        return http.Response('', 204);
+      });
+      final repo = AuthRepository(api: AuthApi(baseUrl: 'http://test', client: client), tokenStorage: store);
+
+      await tester.pumpWidget(MaterialApp(home: AuthGate(repository: repo)));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.delete_outline));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.widgetWithText(TextField, 'Contraseña'), 'contrasena123');
+      await tester.tap(find.widgetWithText(FilledButton, 'Eliminar'));
+      await tester.pumpAndSettle();
+
+      expect(find.widgetWithText(ElevatedButton, 'Iniciar sesión'), findsOneWidget);
+      expect(await store.leer(), isNull);
+    });
+
+    testWidgets('eliminar cuenta con la password incorrecta muestra el error y no cierra sesion', (tester) async {
+      final store = FakeTokenStore();
+      await store.guardar('token-vigente');
+      final client = MockClient((request) async {
+        if (request.method == 'GET') {
+          return http.Response(
+            jsonEncode({
+              'user': {'id': 'u1', 'nombreUsuario': 'ana', 'createdAt': '2026-01-01T00:00:00.000Z'},
+            }),
+            200,
+          );
+        }
+        return http.Response(
+          jsonEncode({'error': {'code': 'CREDENCIALES_INVALIDAS', 'message': 'Usuario o contrasena incorrectos.'}}),
+          401,
+        );
+      });
+      final repo = AuthRepository(api: AuthApi(baseUrl: 'http://test', client: client), tokenStorage: store);
+
+      await tester.pumpWidget(MaterialApp(home: AuthGate(repository: repo)));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.delete_outline));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.widgetWithText(TextField, 'Contraseña'), 'incorrecta');
+      await tester.tap(find.widgetWithText(FilledButton, 'Eliminar'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Usuario o contrasena incorrectos.'), findsOneWidget);
+      expect(find.text('Brilliant · Elegir nivel'), findsOneWidget);
+      expect(await store.leer(), 'token-vigente');
     });
   });
 }

@@ -26,4 +26,11 @@ class AuthCubit extends Cubit<AuthState> {
     await _repository.cerrarSesion();
     emit(const AuthNoAutenticado());
   }
+
+  /// Si la password es incorrecta (u otro error), la excepcion se propaga
+  /// y el estado no cambia: sigue autenticado.
+  Future<void> eliminarCuenta(String password) async {
+    await _repository.eliminarCuenta(password);
+    emit(const AuthNoAutenticado());
+  }
 }

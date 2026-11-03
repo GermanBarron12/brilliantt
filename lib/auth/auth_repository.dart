@@ -71,4 +71,18 @@ class AuthRepository {
       // el cubit independientemente de esto.
     }
   }
+
+  /// Reautentica con la password actual y borra la cuenta en el servidor.
+  /// Si falla (password incorrecta, sin sesion, sin conexion), el token
+  /// local NO se borra: la cuenta sigue existiendo y la sesion sigue siendo
+  /// valida, asi que no hay que desloguear al usuario por un intento
+  /// fallido.
+  Future<void> eliminarCuenta(String password) async {
+    final token = await _tokenStorage.leer();
+    if (token == null) {
+      throw const AuthException('SESION_INVALIDA', 'La sesion no existe, expiro o fue revocada.');
+    }
+    await _api.eliminarCuenta(token, password);
+    await _tokenStorage.borrar();
+  }
 }
