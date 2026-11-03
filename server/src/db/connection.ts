@@ -2,6 +2,7 @@ import { existsSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { migracion001Init } from './migrations/001_init.js';
+import { migracion002VerificacionCorreo } from './migrations/002_verificacion_correo.js';
 
 /**
  * Abre (o crea) la base SQLite en `databasePath` y aplica las migraciones de
@@ -31,5 +32,10 @@ export function abrirBaseDeDatos(databasePath: string): DatabaseSync {
 }
 
 function aplicarMigraciones(db: DatabaseSync): void {
+  // En orden: cada migracion usa `CREATE TABLE IF NOT EXISTS`, asi que
+  // aplicarlas sobre una base que ya las tiene es un no-op seguro. Ninguna
+  // modifica una tabla de una migracion anterior (solo agregan tablas
+  // nuevas), por lo que los datos existentes nunca se tocan.
   db.exec(migracion001Init);
+  db.exec(migracion002VerificacionCorreo);
 }

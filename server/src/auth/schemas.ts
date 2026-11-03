@@ -17,9 +17,13 @@ const email = z
  */
 const password = z.string().min(8).max(256);
 
+/**
+ * El registro ya no recibe una contrasena en este primer paso (ver Fase
+ * 3.2): se guarda contrasena solo despues de verificar la propiedad del
+ * correo, en `completarRegistroSchema`.
+ */
 export const registroSchema = z.object({
   email,
-  password,
 });
 export type RegistroInput = z.infer<typeof registroSchema>;
 
@@ -33,3 +37,18 @@ export const eliminarCuentaSchema = z.object({
   password,
 });
 export type EliminarCuentaInput = z.infer<typeof eliminarCuentaSchema>;
+
+const secretoAleatorio = z.string().min(16).max(512);
+
+export const verificarCorreoSchema = z.object({
+  email,
+  token: secretoAleatorio,
+});
+export type VerificarCorreoInput = z.infer<typeof verificarCorreoSchema>;
+
+export const completarRegistroSchema = z.object({
+  email,
+  ticket: secretoAleatorio,
+  password,
+});
+export type CompletarRegistroInput = z.infer<typeof completarRegistroSchema>;
