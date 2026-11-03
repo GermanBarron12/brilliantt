@@ -5,17 +5,35 @@ los 6 números iniciales sobre el tablero de 7x7, tirada de dados, colocación
 de números respetando la regla de cada zona de color, cálculo de puntaje y
 aviso visual al completar una zona.
 
-## Cómo ejecutar la aplicación
+## Cómo correr el proyecto
 
-```
-flutter pub get
-flutter run -d chrome
+Requiere Node.js 22.5+ y Flutter SDK instalados.
+
+Instalar dependencias (una vez):
+
+```powershell
+.\setup.ps1
 ```
 
-Al iniciar se muestra el tablero para elegir los 6 números iniciales (del 1
-al 6, sin repetir) en las casillas marcadas con una estrella. El botón
-"Inicio" se habilita solo cuando los 6 números son válidos y arranca la
-partida.
+cmd: `powershell -ExecutionPolicy Bypass -File setup.ps1`
+
+Terminal 1 (servidor):
+
+```powershell
+cd server
+npm run build
+$env:CORS_ORIGIN="http://localhost:5173"; npm start
+```
+
+cmd: `set CORS_ORIGIN=http://localhost:5173&& npm start` (sin espacio antes de `&&`)
+
+Terminal 2 (app):
+
+```powershell
+flutter run -d chrome --web-port=5173
+```
+
+Más info del servidor: [`server/README.md`](server/README.md).
 
 ## Cómo correr las pruebas
 
