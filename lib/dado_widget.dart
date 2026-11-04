@@ -18,6 +18,7 @@ class DadoWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: habilitado ? onTap : null,
       child: AnimatedScale(
@@ -28,17 +29,17 @@ class DadoWidget extends StatelessWidget {
           height: 56,
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-            color: habilitado ? Colors.white : Colors.grey.shade300,
+            color: habilitado ? colorScheme.surface : colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: seleccionado ? Colors.blue : Colors.black45,
+              color: seleccionado ? colorScheme.primary : colorScheme.outlineVariant,
               width: seleccionado ? 3 : 1,
             ),
             boxShadow: seleccionado
-                ? [BoxShadow(color: Colors.blue.withValues(alpha: 0.5), blurRadius: 8, spreadRadius: 1)]
-                : const [BoxShadow(color: Colors.black26, blurRadius: 2, offset: Offset(1, 1))],
+                ? [BoxShadow(color: colorScheme.primary.withValues(alpha: 0.5), blurRadius: 8, spreadRadius: 1)]
+                : [BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 2, offset: const Offset(1, 1))],
           ),
-          child: CustomPaint(painter: _CaraDadoPainter(valor)),
+          child: CustomPaint(painter: _CaraDadoPainter(valor, color: colorScheme.onSurface)),
         ),
       ),
     );
@@ -48,12 +49,13 @@ class DadoWidget extends StatelessWidget {
 /// Dibuja los puntos de la cara de un dado según su valor (1 a 6).
 class _CaraDadoPainter extends CustomPainter {
   final int valor;
+  final Color color;
 
-  const _CaraDadoPainter(this.valor);
+  const _CaraDadoPainter(this.valor, {required this.color});
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = Colors.black87;
+    final paint = Paint()..color = color;
     final radio = size.shortestSide * 0.09;
 
     // Puntos ubicados en una grilla de 2 columnas x 3 filas, como las
@@ -87,7 +89,8 @@ class _CaraDadoPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _CaraDadoPainter oldDelegate) => oldDelegate.valor != valor;
+  bool shouldRepaint(covariant _CaraDadoPainter oldDelegate) =>
+      oldDelegate.valor != valor || oldDelegate.color != color;
 }
 
 /// Dibuja los dos dados de la tirada, lado a lado, con una animación breve

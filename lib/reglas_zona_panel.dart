@@ -98,46 +98,44 @@ class _TarjetaRegla extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     return ConstrainedBox(
       // Ancho acotado: las descripciones reales de Tipo (zona.tipo.descripcion)
       // son más largas que las frases cortas que mostraba este panel antes, así
       // que necesitan poder hacer wrap en vez de forzar el ancho de la tarjeta.
-      constraints: const BoxConstraints(maxWidth: 180),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.black26),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 14,
-              height: 14,
-              margin: const EdgeInsets.only(top: 2),
-              decoration: BoxDecoration(
-                color: coloresDeZona[zona.color],
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.black26),
+      constraints: const BoxConstraints(maxWidth: 190),
+      child: Card(
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 14,
+                height: 14,
+                margin: const EdgeInsets.only(top: 2),
+                decoration: BoxDecoration(
+                  color: coloresDeZona[zona.color],
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.black26),
+                ),
               ),
-            ),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    titulo,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                  ),
-                  Text(zona.tipo.descripcion, style: const TextStyle(fontSize: 11)),
-                ],
+              const SizedBox(width: 8),
+              Flexible(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(titulo, style: textTheme.labelMedium),
+                    const SizedBox(height: 2),
+                    Text(zona.tipo.descripcion, style: textTheme.bodySmall),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

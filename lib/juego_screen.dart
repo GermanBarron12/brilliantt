@@ -56,16 +56,29 @@ class _JuegoScreenState extends State<JuegoScreen> {
         builder: (context, estado) {
           final cubit = context.read<JuegoCubit>();
 
+          final colorScheme = Theme.of(context).colorScheme;
+          final textTheme = Theme.of(context).textTheme;
           return Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                Text(
-                  'Puntaje: ${estado.puntaje}',
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    'Puntaje: ${estado.puntaje}',
+                    style: textTheme.titleLarge?.copyWith(color: colorScheme.onPrimaryContainer),
+                  ),
                 ),
                 const SizedBox(height: 8),
-                Text(_instruccion(estado), textAlign: TextAlign.center),
+                Text(
+                  _instruccion(estado),
+                  textAlign: TextAlign.center,
+                  style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
+                ),
                 const SizedBox(height: 12),
                 ParDadosWidget(
                   dados: estado.dados,
@@ -78,16 +91,22 @@ class _JuegoScreenState extends State<JuegoScreen> {
                   child: Center(
                     child: AspectRatio(
                       aspectRatio: 1,
-                      child: TableroWidget(
-                        layout: nivel.layout,
-                        valores: estado.tablero,
-                        estrellas: nivel.casillasEstrella.toSet(),
-                        resaltadas: estado.ancla != null
-                            ? estado.casillasValidas.toSet()
-                            : estado.casillasAnclaPosibles,
-                        repetidas: const {},
-                        seleccionada: estado.ancla,
-                        onTap: cubit.tocarCasilla,
+                      child: Card(
+                        clipBehavior: Clip.antiAlias,
+                        child: Padding(
+                          padding: const EdgeInsets.all(4),
+                          child: TableroWidget(
+                            layout: nivel.layout,
+                            valores: estado.tablero,
+                            estrellas: nivel.casillasEstrella.toSet(),
+                            resaltadas: estado.ancla != null
+                                ? estado.casillasValidas.toSet()
+                                : estado.casillasAnclaPosibles,
+                            repetidas: const {},
+                            seleccionada: estado.ancla,
+                            onTap: cubit.tocarCasilla,
+                          ),
+                        ),
                       ),
                     ),
                   ),
