@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'tablero_layout.dart';
+import 'theme/brilliant_theme.dart';
 
 /// Dibuja la grilla del tablero. Cada casilla se puede tocar y se ve
 /// distinta según tenga número, sea estrella, esté seleccionada, esté
@@ -79,6 +80,7 @@ class _Casilla extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.all(2),
       child: GestureDetector(
@@ -87,9 +89,9 @@ class _Casilla extends StatelessWidget {
           decoration: BoxDecoration(
             color: color,
             borderRadius: BorderRadius.circular(6),
-            border: _borde(),
+            border: _borde(colorScheme),
             boxShadow: resaltada
-                ? const [BoxShadow(color: Colors.amberAccent, blurRadius: 8, spreadRadius: 2)]
+                ? const [BoxShadow(color: BrilliantPalette.dorado, blurRadius: 8, spreadRadius: 2)]
                 : null,
           ),
           child: Stack(
@@ -98,10 +100,10 @@ class _Casilla extends StatelessWidget {
                 Center(
                   child: Text(
                     '$valor',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 18,
-                      color: Colors.black87,
+                      color: _colorDeContenido(color),
                     ),
                   ),
                 ),
@@ -133,12 +135,24 @@ class _Casilla extends StatelessWidget {
     );
   }
 
-  Border? _borde() {
-    if (repetida) return Border.all(color: Colors.black, width: 4);
-    if (seleccionada) return Border.all(color: Colors.black, width: 3);
+  // Antes "repetida" y "seleccionada" usaban el mismo negro: dos estados de
+  // significado muy distinto (error vs. selección normal) terminaban
+  // viéndose iguales. Ahora cada uno toma el color de rol que le
+  // corresponde en el tema (error / primario), y se pueden distinguir sin
+  // depender solo del grosor del borde.
+  Border? _borde(ColorScheme colorScheme) {
+    if (repetida) return Border.all(color: colorScheme.error, width: 4);
+    if (seleccionada) return Border.all(color: colorScheme.primary, width: 3);
     // Negro semitransparente (no blanco): el blanco se perdía contra las
     // casillas de zona blanca, mismo problema que el ícono de arriba.
     if (esEstrella) return Border.all(color: Colors.black45, width: 2);
     return null;
+  }
+
+  /// Negro o blanco según el brillo del color de fondo de la zona, para que
+  /// el número siempre tenga contraste suficiente (antes era siempre negro,
+  /// difícil de leer sobre zonas oscuras como la morada o la azul).
+  Color _colorDeContenido(Color fondo) {
+    return ThemeData.estimateBrightnessForColor(fondo) == Brightness.dark ? Colors.white : Colors.black87;
   }
 }
