@@ -1,0 +1,5 @@
+# El toolchain de Flutter en Windows regenera estos archivos con CRLF en
+# cada build/pub get. Sin esto, git los marca como modificados aunque el
+# unico cambio sea el fin de linea, no el contenido.
+windows/flutter/generated_plugin_registrant.cc text eol=crlf
+windows/flutter/generated_plugins.cmake text eol=crlf
