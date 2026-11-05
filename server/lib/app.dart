@@ -4,10 +4,10 @@ import 'dart:io';
 import 'package:shelf/shelf.dart';
 import 'package:sqlite3/sqlite3.dart';
 
-import 'auth/errors.dart';
 import 'auth/routes.dart';
 import 'auth/service.dart';
 import 'config.dart';
+import 'errors.dart';
 
 const Map<String, String> _jsonHeaders = {'content-type': 'application/json'};
 
@@ -20,7 +20,7 @@ Middleware _manejoDeErrores() {
     return (Request request) async {
       try {
         return await innerHandler(request);
-      } on AuthError catch (error) {
+      } on ApiError catch (error) {
         return _json(error.status, {
           'error': {'code': error.code, 'message': error.message},
         });
