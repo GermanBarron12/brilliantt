@@ -17,9 +17,12 @@ migrate_working_dir/
 .idea/
 
 # El folder .vscode guarda la configuración de lanzamiento y tareas de
-# VS Code, que podrías querer compartir en el repo, así que esta línea
-# queda comentada por defecto.
-#.vscode/
+# VS Code, con rutas absolutas de la máquina de cada quien (como
+# cmake.sourceDirectory), así que no se versiona.
+.vscode/
+
+# Configuración local de Claude Code (lanzamiento de previsualización, etc.).
+.claude/
 
 # Flutter/Dart/Pub related
 **/doc/api/
