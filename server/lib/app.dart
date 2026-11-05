@@ -8,6 +8,8 @@ import 'auth/routes.dart';
 import 'auth/service.dart';
 import 'config.dart';
 import 'errors.dart';
+import 'partidas/routes.dart';
+import 'partidas/service.dart';
 
 const Map<String, String> _jsonHeaders = {'content-type': 'application/json'};
 
@@ -105,9 +107,11 @@ Response _handler404(Request request) => _json(404, {
 
 Handler crearApp(Database db, Config config) {
   final authService = AuthService(db, config);
-  final router = crearRutasAuth(authService, config);
+  final partidaService = PartidaService(db);
+  final rutasAuth = crearRutasAuth(authService, config);
+  final rutasPartidas = crearRutasPartidas(partidaService, authService);
 
-  final appHandler = Cascade().add(router.call).add(_handler404).handler;
+  final appHandler = Cascade().add(rutasAuth.call).add(rutasPartidas.call).add(_handler404).handler;
 
   var pipeline = Pipeline().addMiddleware(_manejoDeErrores()).addMiddleware(_cabecerasSeguridad(config.isProduction)).addMiddleware(_parseJsonBody());
 
