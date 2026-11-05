@@ -1,0 +1,10 @@
+name: brilliant_core
+description: >
+  Logica pura de las reglas, el tablero y el estado de una partida de
+  Brilliant, sin ninguna dependencia de Flutter: la comparten la app y el
+  servidor para que ambos validen las jugadas con exactamente las mismas
+  reglas.
+publish_to: 'none'
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'

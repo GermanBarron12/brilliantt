@@ -11,6 +11,8 @@ dependencies:
   flutter_bloc: ^8.1.6
   http: ^1.2.2
   flutter_secure_storage: ^9.2.3
+  brilliant_core:
+    path: packages/brilliant_core
   flutter:
     sdk: flutter
 
