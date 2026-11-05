@@ -8,6 +8,7 @@ export 'src/configuracion_nivel.dart';
 export 'src/evento_puntuacion.dart';
 export 'src/evento_turno.dart';
 export 'src/juego_estado.dart';
+export 'src/juego_transiciones.dart';
 export 'src/jugador.dart';
 export 'src/movimiento_log.dart';
 export 'src/niveles_oficiales.dart';
