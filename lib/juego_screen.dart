@@ -193,7 +193,16 @@ class _JuegoScreenState extends State<JuegoScreen> {
       builder: (context) {
         return AlertDialog(
           title: const Text('Reglas de las zonas'),
-          content: SizedBox(width: double.maxFinite, child: ReglasZonaPanel(zonas: zonas)),
+          // Ancho explícito (no `double.maxFinite`): un `Wrap` reporta su
+          // ancho intrínseco como la suma de todas sus tarjetas en una sola
+          // línea, así que con `maxFinite` el diálogo terminaba creyendo
+          // que tenía lugar de sobra y la última tarjeta se recortaba. Con
+          // un ancho acotado de verdad, el `Wrap` sí ajusta cuántas
+          // tarjetas entran por línea.
+          content: SizedBox(
+            width: MediaQuery.sizeOf(context).width * 0.8,
+            child: SingleChildScrollView(child: ReglasZonaPanel(zonas: zonas)),
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),

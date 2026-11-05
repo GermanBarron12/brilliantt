@@ -121,18 +121,17 @@ class _NumerosInicialesVista extends StatelessWidget {
                 style: const TextStyle(fontSize: 12, color: Colors.black54),
               ),
               const SizedBox(height: 8),
-              Row(
-                mainAxisSize: MainAxisSize.min,
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 8,
+                runSpacing: 8,
                 children: [
                   for (var numero = 1; numero <= 6; numero++)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: OutlinedButton(
-                        onPressed: cubit.state.numeroValidoEnZona(indice, numero)
-                            ? () => Navigator.of(context).pop(numero)
-                            : null,
-                        child: Text('$numero'),
-                      ),
+                    OutlinedButton(
+                      onPressed: cubit.state.numeroValidoEnZona(indice, numero)
+                          ? () => Navigator.of(context).pop(numero)
+                          : null,
+                      child: Text('$numero'),
                     ),
                 ],
               ),

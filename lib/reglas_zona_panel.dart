@@ -59,27 +59,24 @@ class ReglasZonaPanel extends StatelessWidget {
     final columnas =
         zonas.expand((z) => z.casillas).map((c) => c.columna).reduce((a, b) => a > b ? a : b) + 1;
 
-    // Una fila con scroll horizontal, no un Wrap: la cantidad de tarjetas
-    // varía según el nivel (de 5 en nivel 1 a 7 en nivel 4) y un Wrap
-    // agregaría más filas verticales según haga falta, lo que puede
-    // desbordar una pantalla de juego que no es scrollable. Con scroll
-    // horizontal, el panel siempre ocupa una altura fija sin importar
-    // cuántas reglas tenga el nivel activo ni el ancho de la pantalla.
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          for (final zona in _unaTarjetaPorTipo) ...[
-            _TarjetaRegla(
-              zona: zona,
-              titulo: coloresAmbiguos.contains(zona.color)
-                  ? _tituloConPosicion(zona, filas: filas, columnas: columnas)
-                  : nombreDeColor(zona.color),
-            ),
-            const SizedBox(width: 8),
-          ],
-        ],
-      ),
+    // Wrap en vez de una fila con scroll horizontal: en pantallas angostas,
+    // el scroll horizontal dejaba la última tarjeta cortada a la mitad sin
+    // ninguna pista visual de que había más contenido para el costado. Con
+    // Wrap las tarjetas pasan a una fila nueva según el ancho disponible, y
+    // quien llama a este panel (el diálogo de reglas en juego_screen.dart)
+    // es responsable de darle scroll vertical si hace falta.
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final zona in _unaTarjetaPorTipo)
+          _TarjetaRegla(
+            zona: zona,
+            titulo: coloresAmbiguos.contains(zona.color)
+                ? _tituloConPosicion(zona, filas: filas, columnas: columnas)
+                : nombreDeColor(zona.color),
+          ),
+      ],
     );
   }
 
@@ -106,11 +103,17 @@ class _TarjetaRegla extends StatelessWidget {
       constraints: const BoxConstraints(maxWidth: 190),
       child: Card(
         margin: EdgeInsets.zero,
+        clipBehavior: Clip.antiAlias,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          // Sin `mainAxisSize: MainAxisSize.min`: dentro de un Wrap, el
+          // ConstrainedBox de arriba es lo único que acota el ancho de este
+          // Row a 190. Con mainAxisSize.min, el Flexible de abajo no recibe
+          // un ancho realmente limitado y el texto largo (la descripción de
+          // la zona) no hace wrap, se sale de la tarjeta sin que Card lo
+          // recorte, y termina cortado por el borde del diálogo.
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
             children: [
               Container(
                 width: 14,
