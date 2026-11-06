@@ -7,6 +7,8 @@ import 'partida.dart';
 import 'partida_api.dart';
 import 'partida_error_banner.dart';
 import 'partida_exception.dart';
+import 'partida_juego_screen.dart';
+import 'partida_socket.dart';
 
 /// Sala de espera de una partida: muestra el código para invitar, quién ya
 /// se unió y, si sos el creador, el botón para arrancar. Se actualiza sola
@@ -21,6 +23,7 @@ class LobbyScreen extends StatefulWidget {
     required this.partidaInicial,
     this.intervaloRefresco = const Duration(seconds: 3),
     this.onPartidaIniciada,
+    this.crearSocket,
   });
 
   final PartidaApi api;
@@ -31,8 +34,13 @@ class LobbyScreen extends StatefulWidget {
 
   /// Se llama la primera vez que se detecta que la partida ya empezó (ya
   /// sea porque este jugador la inició, o porque el creador lo hizo desde
-  /// otro lado). Sin esto, el lobby solo avisa que empezó.
+  /// otro lado). Si no se pasa, el lobby entra solo a la partida.
   final void Function(Partida partida)? onPartidaIniciada;
+
+  /// Cómo construir el socket para entrar a la partida cuando no hay
+  /// [onPartidaIniciada]. Por defecto crea uno real; los tests pueden
+  /// inyectar uno con un canal falso.
+  final PartidaSocket Function()? crearSocket;
 
   @override
   State<LobbyScreen> createState() => _LobbyScreenState();
@@ -78,7 +86,25 @@ class _LobbyScreenState extends State<LobbyScreen> {
   void _avisarSiYaEstaIniciada() {
     if (_avisoPartidaIniciada || _partida.estado != EstadoPartida.enCurso) return;
     _avisoPartidaIniciada = true;
-    widget.onPartidaIniciada?.call(_partida);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final callback = widget.onPartidaIniciada;
+      if (callback != null) {
+        callback(_partida);
+      } else {
+        _entrarAlJuego();
+      }
+    });
+  }
+
+  void _entrarAlJuego() {
+    final socket = (widget.crearSocket ?? () => PartidaSocket(baseUrl: widget.api.baseUrl))()
+      ..conectar(_partida.codigoInvitacion, widget.token);
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => PartidaJuegoScreen(socket: socket, usuarioId: widget.usuarioId),
+      ),
+    );
   }
 
   Future<void> _iniciar() async {

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -9,6 +10,21 @@ import 'package:http/testing.dart';
 import 'package:brilliant/partidas/lobby_screen.dart';
 import 'package:brilliant/partidas/partida.dart';
 import 'package:brilliant/partidas/partida_api.dart';
+import 'package:brilliant/partidas/partida_juego_screen.dart';
+import 'package:brilliant/partidas/partida_socket.dart';
+
+class _CanalFalso implements CanalPartida {
+  final _entrante = StreamController<dynamic>.broadcast();
+
+  @override
+  Stream<dynamic> get stream => _entrante.stream;
+
+  @override
+  void enviar(String mensaje) {}
+
+  @override
+  Future<void> cerrar() async => _entrante.close();
+}
 
 Participante _participante(String id, String nombre, int orden, {bool esCreador = false}) {
   return Participante(usuarioId: id, nombreUsuario: nombre, ordenTurno: orden, estado: 'conectado', esCreador: esCreador);
@@ -154,6 +170,53 @@ void main() {
 
       expect(find.text('¡La partida ya empezó!'), findsOneWidget);
       expect(iniciadaRecibida?.estado, 'en_curso');
+    });
+
+    testWidgets('sin onPartidaIniciada, entra solo a la partida cuando arranca', (tester) async {
+      final partidaLobby = _partida(
+        participantes: [_participante('u1', 'creador', 0, esCreador: true), _participante('u2', 'invitado', 1)],
+      );
+      final partidaIniciada = Partida(
+        id: partidaLobby.id,
+        codigoInvitacion: partidaLobby.codigoInvitacion,
+        nivelId: partidaLobby.nivelId,
+        estado: 'en_curso',
+        creadorId: partidaLobby.creadorId,
+        maxJugadores: partidaLobby.maxJugadores,
+        participantes: partidaLobby.participantes,
+        turnoUsuarioId: 'u1',
+      );
+      final client = MockClient((request) async {
+        if (request.url.path.endsWith('/iniciar')) {
+          return http.Response(jsonEncode({'partida': _partidaJson(partidaIniciada)}), 200);
+        }
+        return http.Response(jsonEncode({'partida': _partidaJson(partidaLobby)}), 200);
+      });
+      final api = PartidaApi(baseUrl: 'http://test', client: client);
+      final canalFalso = _CanalFalso();
+
+      addTearDown(() => tester.pumpWidget(const SizedBox()));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LobbyScreen(
+            api: api,
+            token: 'token-1',
+            usuarioId: 'u1',
+            partidaInicial: partidaLobby,
+            crearSocket: () => PartidaSocket(baseUrl: 'http://test', crearCanal: (_) => canalFalso),
+          ),
+        ),
+      );
+
+      // No se usa pumpAndSettle: PartidaJuegoScreen muestra un loader
+      // indeterminado hasta que llega el primer estado, que nunca se
+      // asienta solo.
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Iniciar partida'));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.byType(PartidaJuegoScreen), findsOneWidget);
     });
 
     testWidgets('copiar codigo lo manda al portapapeles', (tester) async {
