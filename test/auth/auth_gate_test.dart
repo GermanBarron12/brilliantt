@@ -71,6 +71,28 @@ void main() {
       expect(await store.leer(), isNull);
     });
 
+    testWidgets('el boton de jugar con amigos abre el menu de partidas', (tester) async {
+      final store = FakeTokenStore();
+      await store.guardar('token-vigente');
+      final client = MockClient((request) async {
+        return http.Response(
+          jsonEncode({
+            'user': {'id': 'u1', 'nombreUsuario': 'ana', 'createdAt': '2026-01-01T00:00:00.000Z'},
+          }),
+          200,
+        );
+      });
+      final repo = AuthRepository(api: AuthApi(baseUrl: 'http://test', client: client), tokenStorage: store);
+
+      await tester.pumpWidget(MaterialApp(home: AuthGate(repository: repo)));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.people_outline));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Jugar con amigos'), findsWidgets);
+    });
+
     testWidgets('registrarse desde la pantalla de Crear cuenta (empujada) navega al juego', (tester) async {
       // Reproduce el bug real encontrado manualmente: RegisterScreen se
       // abre con Navigator.push desde LoginScreen, así que si el

@@ -82,6 +82,17 @@ void main() {
       expect(await store.leer(), isNull);
     });
 
+    test('leerToken devuelve el token guardado, o null si no hay sesion', () async {
+      final store = FakeTokenStore();
+      final client = MockClient((request) async => http.Response('no deberia llamarse', 500));
+      final repo = AuthRepository(api: AuthApi(baseUrl: 'http://test', client: client), tokenStorage: store);
+
+      expect(await repo.leerToken(), isNull);
+
+      await store.guardar('token-1');
+      expect(await repo.leerToken(), 'token-1');
+    });
+
     test('registrar guarda el token de la sesion autologueada', () async {
       final store = FakeTokenStore();
       final client = MockClient((request) async {

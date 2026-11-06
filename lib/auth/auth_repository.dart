@@ -14,6 +14,11 @@ class AuthRepository {
   final AuthApi _api;
   final TokenStore _tokenStorage;
 
+  /// El token de la sesion activa, o `null` si no hay ninguna guardada.
+  /// Lo usan las features que hablan con otros backends (como partidas)
+  /// y necesitan mandar el mismo token de sesion.
+  Future<String?> leerToken() => _tokenStorage.leer();
+
   Future<Usuario> registrar(String nombreUsuario, String password) async {
     final resultado = await _api.registrar(nombreUsuario, password);
     await _tokenStorage.guardar(resultado.token);

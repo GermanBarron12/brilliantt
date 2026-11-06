@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../partidas/partida_api.dart';
+import '../partidas/partida_menu_screen.dart';
 import '../seleccion_nivel_screen.dart';
+import 'api_config.dart';
 import 'auth_api.dart';
 import 'auth_cubit.dart';
 import 'auth_exception.dart';
 import 'auth_repository.dart';
 import 'auth_state.dart';
 import 'login_screen.dart';
+import 'usuario.dart';
 
 /// Raíz de la app: decide si mostrar la pantalla de login o el juego según
 /// haya o no una sesión válida guardada. Crea y provee el `AuthRepository`
@@ -53,7 +57,7 @@ class _AuthGateBody extends StatelessWidget {
             return const Scaffold(body: Center(child: CircularProgressIndicator()));
           case AuthNoAutenticado():
             return LoginScreen(repository: repository);
-          case AuthAutenticado():
+          case AuthAutenticado(usuario: final usuario):
             return SeleccionNivelScreen(
               onCerrarSesion: () => context.read<AuthCubit>().cerrarSesion(),
               onEliminarCuenta: (password) async {
@@ -64,11 +68,30 @@ class _AuthGateBody extends StatelessWidget {
                   return error.message;
                 }
               },
+              onJugarMultijugador: () => _abrirMultijugador(context, repository, usuario),
             );
         }
       },
     );
   }
+}
+
+/// Lee el token de la sesion activa y abre el menu de multijugador. Si por
+/// algun motivo no hay token guardado (no deberia pasar estando
+/// autenticado), no hace nada: no tiene sentido entrar a partidas sin
+/// poder autenticarse contra ese backend.
+Future<void> _abrirMultijugador(BuildContext context, AuthRepository repository, Usuario usuario) async {
+  final token = await repository.leerToken();
+  if (token == null || !context.mounted) return;
+  await Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => PartidaMenuScreen(
+        api: PartidaApi(baseUrl: apiBaseUrl),
+        token: token,
+        usuarioId: usuario.id,
+      ),
+    ),
+  );
 }
 
 /// Construye el `AuthGate` con las dependencias reales (API + storage

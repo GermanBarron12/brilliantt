@@ -18,7 +18,12 @@ import 'tablero_widget.dart';
 /// pantalla y las que arman un nivel directamente) la pantalla no depende
 /// de nada de `lib/auth/`.
 class SeleccionNivelScreen extends StatelessWidget {
-  const SeleccionNivelScreen({super.key, this.onCerrarSesion, this.onEliminarCuenta});
+  const SeleccionNivelScreen({
+    super.key,
+    this.onCerrarSesion,
+    this.onEliminarCuenta,
+    this.onJugarMultijugador,
+  });
 
   final VoidCallback? onCerrarSesion;
 
@@ -26,12 +31,23 @@ class SeleccionNivelScreen extends StatelessWidget {
   /// error para mostrar si falla, o `null` si la cuenta se elimino bien.
   final Future<String?> Function(String password)? onEliminarCuenta;
 
+  /// Abre el flujo de jugar con amigos (crear partida o unirse con un
+  /// codigo). Opcional, como los demas callbacks: sin el, el boton no
+  /// aparece y la pantalla no depende de nada de `lib/partidas/`.
+  final VoidCallback? onJugarMultijugador;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Brilliant · Elegir nivel'),
         actions: [
+          if (onJugarMultijugador != null)
+            IconButton(
+              icon: const Icon(Icons.people_outline),
+              tooltip: 'Jugar con amigos',
+              onPressed: onJugarMultijugador,
+            ),
           if (onEliminarCuenta != null)
             IconButton(
               icon: const Icon(Icons.delete_outline),
