@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
@@ -35,15 +36,28 @@ class SalaDePartida {
     required JuegoEstado estado,
     required List<Participante> participantes,
     required String turnoUsuarioId,
+    required Duration duracionEsperaDesconexion,
   })  : _db = db,
         _estado = estado,
         _participantes = participantes,
-        _turnoUsuarioId = turnoUsuarioId;
+        _turnoUsuarioId = turnoUsuarioId,
+        _duracionEsperaDesconexion = duracionEsperaDesconexion;
 
   final String partidaId;
   final Database _db;
   final Random _random = Random.secure();
   final Map<String, WebSocketChannel> _conexiones = {};
+
+  /// Cuanto se espera, desde que se desconecta quien tiene el turno, antes
+  /// de saltarselo automaticamente (si no volvio a conectarse y jugar
+  /// antes). Configurable solo para que los tests no tengan que esperar un
+  /// minuto real.
+  final Duration _duracionEsperaDesconexion;
+
+  /// El salto de turno pendiente por desconexion de quien tiene el turno
+  /// ahora mismo, si hay uno. Se cancela si vuelve a conectarse a tiempo, o
+  /// si el turno cambia por cualquier otro motivo antes de que se cumpla.
+  Timer? _timerDesconexion;
 
   JuegoEstado _estado;
   List<Participante> _participantes;
@@ -53,7 +67,11 @@ class SalaDePartida {
   /// participantes, y reproduce (en orden) cada movimiento ya persistido
   /// sobre un tablero vacío. Así, si el servidor se reinicia, una partida
   /// en curso retoma exactamente donde estaba.
-  factory SalaDePartida.cargar(Database db, String partidaId) {
+  factory SalaDePartida.cargar(
+    Database db,
+    String partidaId, {
+    Duration duracionEsperaDesconexion = const Duration(seconds: 60),
+  }) {
     final filaPartida = db.select('SELECT * FROM partidas WHERE id = ?', [partidaId]).first;
     final nivel = configuracionPorId(filaPartida['nivel_id'] as int)!;
 
@@ -100,6 +118,7 @@ class SalaDePartida {
       estado: estado,
       participantes: participantes,
       turnoUsuarioId: filaPartida['turno_usuario_id'] as String,
+      duracionEsperaDesconexion: duracionEsperaDesconexion,
     );
   }
 
@@ -146,16 +165,74 @@ class SalaDePartida {
 
   /// Registra la conexión de [usuarioId] y le manda el estado actual. Si
   /// ya tenía una conexión abierta (por ejemplo, otra pestaña), se
-  /// reemplaza por esta.
+  /// reemplaza por esta. Si tenía pendiente un salto de turno por
+  /// desconexión, se cancela: volvió a tiempo.
   void conectar(String usuarioId, WebSocketChannel canal) {
     _conexiones[usuarioId] = canal;
-    canal.sink.add(jsonEncode({'tipo': 'estado', 'partida': _estadoPublico()}));
+    if (usuarioId == _turnoUsuarioId) {
+      _cancelarTimerDesconexion();
+    }
+    if (_cambiarEstadoParticipante(usuarioId, EstadoParticipante.conectado)) {
+      _difundirEstado();
+    } else {
+      canal.sink.add(jsonEncode({'tipo': 'estado', 'partida': _estadoPublico()}));
+    }
   }
 
+  void _cancelarTimerDesconexion() {
+    _timerDesconexion?.cancel();
+    _timerDesconexion = null;
+  }
+
+  /// Marca a [usuarioId] como desconectado y, si era su turno, programa que
+  /// se le salte automáticamente si no vuelve a conectarse y a jugar antes
+  /// de [_duracionEsperaDesconexion].
   void desconectar(String usuarioId, WebSocketChannel canal) {
-    if (_conexiones[usuarioId] == canal) {
-      _conexiones.remove(usuarioId);
+    if (_conexiones[usuarioId] != canal) return;
+    _conexiones.remove(usuarioId);
+    if (_cambiarEstadoParticipante(usuarioId, EstadoParticipante.desconectado)) {
+      _difundirEstado();
     }
+
+    if (usuarioId == _turnoUsuarioId) {
+      _timerDesconexion?.cancel();
+      _timerDesconexion = Timer(_duracionEsperaDesconexion, () => _saltarTurnoPorDesconexion(usuarioId));
+    }
+  }
+
+  /// Se ejecuta cuando se cumple la espera de [_duracionEsperaDesconexion]
+  /// desde que [usuarioId] se desconectó teniendo el turno. Si para
+  /// entonces ya jugó, se saltó el turno de otra forma, o volvió a
+  /// conectarse, no hace nada (ya se habría cancelado este timer o el turno
+  /// ya no sería suyo).
+  void _saltarTurnoPorDesconexion(String usuarioId) {
+    _timerDesconexion = null;
+    if (_turnoUsuarioId != usuarioId || _conexiones.containsKey(usuarioId)) return;
+
+    final nuevoEstado = aplicarSaltarTurno(_estado);
+    _aplicarYPersistir(nuevoEstado, _TipoMovimiento.saltarTurno, const {}, usuarioId, avanzarTurno: true);
+  }
+
+  /// Actualiza el estado de conexión de [usuarioId] en memoria y en la base
+  /// de datos. No hace nada si ya estaba en ese estado, y devuelve si hubo
+  /// un cambio real (para no difundir un estado idéntico al anterior).
+  bool _cambiarEstadoParticipante(String usuarioId, String nuevoEstado) {
+    final indice = _participantes.indexWhere((p) => p.usuarioId == usuarioId);
+    if (indice == -1 || _participantes[indice].estado == nuevoEstado) return false;
+
+    _db.execute(
+      'UPDATE participantes_partida SET estado = ? WHERE partida_id = ? AND usuario_id = ?',
+      [nuevoEstado, partidaId, usuarioId],
+    );
+    final anterior = _participantes[indice];
+    _participantes[indice] = Participante(
+      usuarioId: anterior.usuarioId,
+      nombreUsuario: anterior.nombreUsuario,
+      ordenTurno: anterior.ordenTurno,
+      estado: nuevoEstado,
+      esCreador: anterior.esCreador,
+    );
+    return true;
   }
 
   /// Procesa un mensaje entrante de [usuarioId]. Cualquier jugada fuera de
@@ -338,12 +415,27 @@ class SalaDePartida {
 /// (la carga desde la base de datos pasa una sola vez, la primera vez que
 /// alguien se conecta a esa partida).
 class SalasDePartida {
-  SalasDePartida(this._db);
+  SalasDePartida(this._db, {Duration duracionEsperaDesconexion = const Duration(seconds: 60)})
+      : _duracionEsperaDesconexion = duracionEsperaDesconexion;
 
   final Database _db;
+  final Duration _duracionEsperaDesconexion;
   final Map<String, SalaDePartida> _salas = {};
 
   SalaDePartida obtener(String partidaId) {
-    return _salas.putIfAbsent(partidaId, () => SalaDePartida.cargar(_db, partidaId));
+    return _salas.putIfAbsent(
+      partidaId,
+      () => SalaDePartida.cargar(_db, partidaId, duracionEsperaDesconexion: _duracionEsperaDesconexion),
+    );
+  }
+
+  /// Cancela cualquier salto de turno por desconexion que haya quedado
+  /// pendiente en las salas cargadas. Pensado para los tests: sin esto, un
+  /// timer pendiente puede disparar despues de que el test ya cerro su
+  /// base de datos, haciendo fallar a un test completamente distinto.
+  void cancelarTimersPendientes() {
+    for (final sala in _salas.values) {
+      sala._cancelarTimerDesconexion();
+    }
   }
 }

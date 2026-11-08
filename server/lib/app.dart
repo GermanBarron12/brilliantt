@@ -111,12 +111,17 @@ Response _handler404(Request request) => _json(404, {
       'error': {'code': 'NO_ENCONTRADO', 'message': 'Recurso no encontrado.'},
     });
 
-Handler crearApp(Database db, Config config) {
+Handler crearApp(
+  Database db,
+  Config config, {
+  Duration duracionEsperaDesconexion = const Duration(seconds: 60),
+  SalasDePartida? salas,
+}) {
   final authService = AuthService(db, config);
   final partidaService = PartidaService(db);
-  final salas = SalasDePartida(db);
+  final salasResueltas = salas ?? SalasDePartida(db, duracionEsperaDesconexion: duracionEsperaDesconexion);
   final rutasAuth = crearRutasAuth(authService, config);
-  final rutasPartidas = crearRutasPartidas(partidaService, authService, salas);
+  final rutasPartidas = crearRutasPartidas(partidaService, authService, salasResueltas);
 
   final appHandler = Cascade().add(rutasAuth.call).add(rutasPartidas.call).add(_handler404).handler;
 

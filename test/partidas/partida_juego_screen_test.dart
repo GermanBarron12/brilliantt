@@ -132,6 +132,43 @@ void main() {
       addTearDown(() => tester.pumpWidget(const SizedBox()));
     });
 
+    testWidgets('si se corta la conexion, avisa y deshabilita los controles aunque sea mi turno', (tester) async {
+      socket = PartidaSocket(
+        baseUrl: 'http://test',
+        crearCanal: (_) => canal,
+        esperaDeReconexion: (_) => const Duration(hours: 1), // no reintenta durante el test
+      );
+      socket.conectar('ABC123', 'token-1');
+      await tester.pumpWidget(
+        MaterialApp(home: PartidaJuegoScreen(socket: socket, usuarioId: 'u1')),
+      );
+      canal.simularEstado(_estadoJson(turnoUsuarioId: 'u1', dados: [3, 4]));
+      await tester.pump();
+      expect(find.text('Reconectando...'), findsNothing);
+
+      await canal.cerrar();
+      await tester.pump();
+
+      expect(find.text('Reconectando...'), findsOneWidget);
+      final boton = tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, 'Tirar dados'));
+      expect(boton.onPressed, isNull);
+      addTearDown(() => tester.pumpWidget(const SizedBox()));
+    });
+
+    testWidgets('si a quien le toca jugar se desconecta, el mensaje lo avisa', (tester) async {
+      socket.conectar('ABC123', 'token-1');
+      await tester.pumpWidget(
+        MaterialApp(home: PartidaJuegoScreen(socket: socket, usuarioId: 'u1')),
+      );
+      final estado = _estadoJson(turnoUsuarioId: 'u2');
+      (estado['participantes'] as List).cast<Map<String, dynamic>>()[1]['estado'] = 'desconectado';
+      canal.simularEstado(estado);
+      await tester.pump();
+
+      expect(find.textContaining('beto se desconectó'), findsOneWidget);
+      addTearDown(() => tester.pumpWidget(const SizedBox()));
+    });
+
     testWidgets('no genera overflow en un ancho reducido', (tester) async {
       socket.conectar('ABC123', 'token-1');
       tester.view.physicalSize = const Size(320, 700);

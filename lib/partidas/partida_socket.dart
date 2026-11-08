@@ -35,34 +35,75 @@ class _CanalWebSocket implements CanalPartida {
 /// (que solo habla con el lobby), esto es lo que recibe cada actualización
 /// del tablero y manda cada jugada mientras se juega.
 ///
-/// No reconecta sola si la conexión se cae: eso es responsabilidad de
-/// quien la use (ver la fase de manejo de desconexión/reconexión).
+/// Si la conexión se cae, reintenta sola en segundo plano (espera
+/// creciente entre intentos, hasta un tope) hasta volver a conectarse;
+/// [conexion] informa cuándo está reconectando para que la pantalla pueda
+/// avisarle al jugador.
 class PartidaSocket {
-  PartidaSocket({required this.baseUrl, CanalPartida Function(Uri uri)? crearCanal})
-      : _crearCanal = crearCanal ?? ((uri) => _CanalWebSocket(uri));
+  PartidaSocket({
+    required this.baseUrl,
+    CanalPartida Function(Uri uri)? crearCanal,
+    Duration Function(int intento)? esperaDeReconexion,
+  })  : _crearCanal = crearCanal ?? ((uri) => _CanalWebSocket(uri)),
+        _esperaDeReconexion = esperaDeReconexion ?? _esperaPorDefecto;
 
   final String baseUrl;
   final CanalPartida Function(Uri uri) _crearCanal;
+  final Duration Function(int intento) _esperaDeReconexion;
 
   CanalPartida? _canal;
   StreamSubscription<dynamic>? _subscripcion;
+  Timer? _timerReconexion;
+  int _intentosReconexion = 0;
+  bool _cerrado = false;
+  String? _codigoInvitacion;
+  String? _token;
+
   final _estados = StreamController<EstadoPartidaEnVivo>.broadcast();
   final _errores = StreamController<PartidaException>.broadcast();
+  final _conexion = StreamController<bool>.broadcast();
 
   /// Cada actualización del tablero y el turno, a medida que llegan.
   Stream<EstadoPartidaEnVivo> get estados => _estados.stream;
 
   /// Errores de una jugada propia rechazada por el servidor (por ejemplo,
-  /// jugar fuera de turno), o de la conexión misma.
+  /// jugar fuera de turno).
   Stream<PartidaException> get errores => _errores.stream;
 
+  /// `false` mientras se perdió la conexión y se está reintentando,
+  /// `true` apenas se vuelve a recibir un estado. No emite nada mientras
+  /// la conexión inicial sigue activa sin haberse cortado nunca.
+  Stream<bool> get conexion => _conexion.stream;
+
+  /// Espera entre reintentos: 2, 4, 6... segundos, con un tope de 10.
+  static Duration _esperaPorDefecto(int intento) {
+    final segundos = intento * 2;
+    return Duration(seconds: segundos > 10 ? 10 : segundos);
+  }
+
   void conectar(String codigoInvitacion, String token) {
-    final canal = _crearCanal(_wsUri(codigoInvitacion, token));
+    _codigoInvitacion = codigoInvitacion;
+    _token = token;
+    _abrirCanal();
+  }
+
+  void _abrirCanal() {
+    final canal = _crearCanal(_wsUri(_codigoInvitacion!, _token!));
     _canal = canal;
     _subscripcion = canal.stream.listen(
       _procesarMensaje,
-      onError: (_) => _errores.add(const PartidaException.sinConexion()),
+      onError: (_) => _manejarDesconexion(),
+      onDone: _manejarDesconexion,
     );
+  }
+
+  void _manejarDesconexion() {
+    if (_cerrado) return;
+    _canal = null;
+    _subscripcion = null;
+    _conexion.add(false);
+    _intentosReconexion++;
+    _timerReconexion = Timer(_esperaDeReconexion(_intentosReconexion), _abrirCanal);
   }
 
   Uri _wsUri(String codigoInvitacion, String token) {
@@ -84,6 +125,10 @@ class PartidaSocket {
 
     switch (mensaje['tipo']) {
       case 'estado':
+        if (_intentosReconexion > 0) {
+          _intentosReconexion = 0;
+          _conexion.add(true);
+        }
         _estados.add(EstadoPartidaEnVivo.fromJson(mensaje['partida'] as Map<String, dynamic>));
       case 'error':
         final error = mensaje['error'] as Map<String, dynamic>;
@@ -106,9 +151,12 @@ class PartidaSocket {
   }
 
   Future<void> cerrar() async {
+    _cerrado = true;
+    _timerReconexion?.cancel();
     await _subscripcion?.cancel();
     await _canal?.cerrar();
     await _estados.close();
     await _errores.close();
+    await _conexion.close();
   }
 }

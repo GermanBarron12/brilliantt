@@ -159,4 +159,76 @@ void main() {
       expect(canalFalso.cerrado, isTrue);
     });
   });
+
+  group('PartidaSocket - reconexion', () {
+    late List<_CanalFalso> canales;
+    late PartidaSocket socket;
+
+    setUp(() {
+      canales = [];
+      socket = PartidaSocket(
+        baseUrl: 'http://test',
+        crearCanal: (uri) {
+          final canal = _CanalFalso();
+          canales.add(canal);
+          return canal;
+        },
+        esperaDeReconexion: (intento) => const Duration(milliseconds: 10),
+      );
+    });
+
+    tearDown(() => socket.cerrar());
+
+    test('si se corta la conexion, avisa por conexion y abre un canal nuevo solo', () async {
+      socket.conectar('ABC123', 'token-1');
+      expect(canales, hasLength(1));
+
+      final avisoDeCorte = socket.conexion.first;
+      await canales[0].cerrar(); // simula que el servidor cortó la conexion
+
+      expect(await avisoDeCorte, isFalse);
+
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(canales, hasLength(2), reason: 'deberia haber reintentado solo, sin que nadie le pida nada');
+    });
+
+    test('al recibir el primer estado tras reconectar, avisa por conexion que ya esta de vuelta', () async {
+      socket.conectar('ABC123', 'token-1');
+      final avisos = <bool>[];
+      socket.conexion.listen(avisos.add);
+
+      await canales[0].cerrar();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(canales, hasLength(2));
+      expect(avisos, [false]);
+
+      canales[1].simularMensajeDelServidor(_estadoJson());
+      await Future<void>.delayed(Duration.zero);
+
+      expect(avisos, [false, true]);
+    });
+
+    test('las jugadas despues de reconectar se mandan por el canal nuevo, no por el viejo', () async {
+      socket.conectar('ABC123', 'token-1');
+
+      await canales[0].cerrar();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(canales, hasLength(2));
+
+      socket.tirarDados();
+
+      expect(canales[0].enviados, isEmpty);
+      expect(canales[1].enviados, [{'tipo': 'tirar_dados'}]);
+    });
+
+    test('cerrar durante una espera de reconexion no abre otro canal despues', () async {
+      socket.conectar('ABC123', 'token-1');
+
+      await canales[0].cerrar();
+      await socket.cerrar();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(canales, hasLength(1), reason: 'cerrar() debe cancelar el reintento pendiente');
+    });
+  });
 }
