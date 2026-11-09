@@ -144,3 +144,36 @@ int puntuacionIndividual(int nivelId, ColorZona color) {
 /// pruebas existentes que ya consultaban esta forma "un color -> un
 /// puntaje" para nivel 1 específicamente.
 final Map<ColorZona, int> puntosPorZonaCompleta = Map.unmodifiable(puntuacionIndividualPorNivel[1]!);
+
+/// Puntaje mínimo que hay que alcanzar (o superar) para que termine una
+/// partida multijugador, según la cantidad de jugadores que participan.
+/// Reglas oficiales de Brilliant: con 2 jugadores son 26 puntos, con 3 son
+/// 24, con 4 son 22 y con 5 o más son 20.
+int puntajeMinimoMultijugador(int cantidadJugadores) {
+  if (cantidadJugadores <= 2) return 26;
+  if (cantidadJugadores == 3) return 24;
+  if (cantidadJugadores == 4) return 22;
+  return 20;
+}
+
+/// Los 3 valores de puntuación multijugador (1er/2do/3er jugador en
+/// completar la zona) de [color] en el nivel [nivelId].
+///
+/// A diferencia de [puntuacionMultijugador], lanza [ArgumentError] si esa
+/// combinación no tiene valores definidos en [puntuacionMultijugadorPorNivel]
+/// — mismo criterio que [puntuacionIndividual], para que un error de
+/// configuración (una zona con un color que no corresponde a ese nivel) se
+/// note en vez de esconderse detrás de un valor nulo silencioso.
+List<int> puntuacionMultijugadorRequerida(int nivelId, ColorZona color) {
+  final valores = puntuacionMultijugador(nivelId, color);
+  if (valores == null) {
+    throw ArgumentError(
+      'No hay puntuación multijugador definida para nivel $nivelId, color '
+      '${color.name}. Si ese color realmente existe en ese nivel, falta '
+      'completarlo en puntuacionMultijugadorPorNivel; si no existe en ese '
+      'nivel, hay una zona con un color que no le corresponde (error de '
+      'configuración de ConfiguracionNivel).',
+    );
+  }
+  return valores;
+}

@@ -76,6 +76,21 @@ Router crearRutasPartidas(PartidaService partidaService, AuthService authService
     }),
   );
 
+  router.post(
+    '/partidas/<codigo>/numeros-iniciales',
+    Pipeline().addMiddleware(requiereSesion).addHandler((request) async {
+      final codigo = request.params['codigo']!;
+      final usuario = request.context['usuario'] as Usuario;
+      final input = validarElegirNumerosIniciales(_bodyDe(request));
+      final partida = partidaService.elegirNumerosIniciales(
+        codigoInvitacion: normalizarCodigoInvitacion(codigo),
+        usuarioId: usuario.id,
+        numerosCrudos: input.numeros,
+      );
+      return _json(200, {'partida': partida.toJson()});
+    }),
+  );
+
   router.get('/partidas/<codigo>/ws', (Request request) async {
     final codigo = normalizarCodigoInvitacion(request.params['codigo']!);
     final token = request.url.queryParameters['token'];

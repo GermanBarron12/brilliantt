@@ -130,7 +130,7 @@ void main() {
       expect((cuerpo['error'] as Map)['code'], 'NO_ES_CREADOR');
     });
 
-    test('200 con 2 o mas jugadores: la partida pasa a en_curso', () async {
+    test('200 con 2 o mas jugadores: la partida pasa a eligiendo_numeros', () async {
       final tokenCreador = await registrar('creador_ok');
       final tokenInvitado = await registrar('invitado_ok');
 
@@ -139,6 +139,65 @@ void main() {
       await post('/partidas/$codigo/unirse', {}, token: tokenInvitado);
 
       final respuesta = await post('/partidas/$codigo/iniciar', {}, token: tokenCreador);
+      final cuerpo = jsonDecode(respuesta.body) as Map<String, dynamic>;
+
+      expect(respuesta.statusCode, 200);
+      expect((cuerpo['partida'] as Map)['estado'], 'eligiendo_numeros');
+    });
+  });
+
+  group('POST /partidas/<codigo>/numeros-iniciales', () {
+    Future<String> crearPartidaEligiendoNumeros(String tokenCreador, String tokenInvitado) async {
+      final creada = await post('/partidas', {'nivelId': 1, 'maxJugadores': 4}, token: tokenCreador);
+      final codigo = (jsonDecode(creada.body)['partida'] as Map)['codigoInvitacion'] as String;
+      await post('/partidas/$codigo/unirse', {}, token: tokenInvitado);
+      await post('/partidas/$codigo/iniciar', {}, token: tokenCreador);
+      return codigo;
+    }
+
+    test('400 con numeros invalidos', () async {
+      final tokenCreador = await registrar('creador_numeros_mal');
+      final tokenInvitado = await registrar('invitado_numeros_mal');
+      final codigo = await crearPartidaEligiendoNumeros(tokenCreador, tokenInvitado);
+
+      final respuesta = await post('/partidas/$codigo/numeros-iniciales', {
+        'numeros': [1, 1, 3, 4, 5, 6],
+      }, token: tokenCreador);
+      final cuerpo = jsonDecode(respuesta.body) as Map<String, dynamic>;
+
+      expect(respuesta.statusCode, 400);
+      expect((cuerpo['error'] as Map)['code'], 'NUMEROS_INICIALES_INVALIDOS');
+    });
+
+    test('200 con numeros validos: queda listo solo quien los mando', () async {
+      final tokenCreador = await registrar('creador_numeros_ok');
+      final tokenInvitado = await registrar('invitado_numeros_ok');
+      final codigo = await crearPartidaEligiendoNumeros(tokenCreador, tokenInvitado);
+
+      final respuesta = await post('/partidas/$codigo/numeros-iniciales', {
+        'numeros': [1, 2, 3, 4, 5, 6],
+      }, token: tokenCreador);
+      final cuerpo = jsonDecode(respuesta.body) as Map<String, dynamic>;
+
+      expect(respuesta.statusCode, 200);
+      final partida = cuerpo['partida'] as Map<String, dynamic>;
+      expect(partida['estado'], 'eligiendo_numeros');
+      final participantes = (partida['participantes'] as List).cast<Map<String, dynamic>>();
+      expect(participantes.firstWhere((p) => p['nombreUsuario'] == 'creador_numeros_ok')['numerosListos'], isTrue);
+      expect(participantes.firstWhere((p) => p['nombreUsuario'] == 'invitado_numeros_ok')['numerosListos'], isFalse);
+    });
+
+    test('200 cuando confirman todos: pasa a en_curso', () async {
+      final tokenCreador = await registrar('creador_numeros_fin');
+      final tokenInvitado = await registrar('invitado_numeros_fin');
+      final codigo = await crearPartidaEligiendoNumeros(tokenCreador, tokenInvitado);
+
+      await post('/partidas/$codigo/numeros-iniciales', {
+        'numeros': [1, 2, 3, 4, 5, 6],
+      }, token: tokenCreador);
+      final respuesta = await post('/partidas/$codigo/numeros-iniciales', {
+        'numeros': [2, 3, 4, 5, 6, 1],
+      }, token: tokenInvitado);
       final cuerpo = jsonDecode(respuesta.body) as Map<String, dynamic>;
 
       expect(respuesta.statusCode, 200);

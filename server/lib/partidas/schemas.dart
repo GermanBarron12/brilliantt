@@ -36,6 +36,26 @@ CrearPartidaInput validarCrearPartida(Map<String, dynamic> body) {
   return CrearPartidaInput(_validarNivelId(body['nivelId']), _validarMaxJugadores(body['maxJugadores']));
 }
 
+List<int> _validarNumerosCrudos(dynamic valor) {
+  if (valor is! List || valor.isEmpty || valor.any((v) => v is! int)) {
+    throw PartidaEntradaInvalidaError('numeros debe ser una lista de numeros enteros.');
+  }
+  return valor.cast<int>();
+}
+
+class ElegirNumerosInicialesInput {
+  const ElegirNumerosInicialesInput(this.numeros);
+  final List<int> numeros;
+}
+
+/// Solo valida la forma del body (que sea una lista de enteros): las
+/// reglas del juego (cantidad correcta para el nivel, sin repetidos, regla
+/// de zona) las valida `PartidaService.elegirNumerosIniciales` con
+/// `brilliant_core`, porque necesitan conocer el nivel de la partida.
+ElegirNumerosInicialesInput validarElegirNumerosIniciales(Map<String, dynamic> body) {
+  return ElegirNumerosInicialesInput(_validarNumerosCrudos(body['numeros']));
+}
+
 /// Normaliza el codigo de invitacion que llega por la URL (mayusculas, sin
 /// espacios): asi da igual como lo haya tipeado o pegado el jugador.
 String normalizarCodigoInvitacion(String valor) => valor.trim().toUpperCase();

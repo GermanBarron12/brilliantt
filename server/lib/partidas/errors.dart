@@ -30,3 +30,20 @@ class JugadoresInsuficientesError extends PartidaError {
   JugadoresInsuficientesError()
       : super(400, 'JUGADORES_INSUFICIENTES', 'Hacen falta al menos 2 jugadores para iniciar la partida.');
 }
+
+class NoEsParticipanteError extends PartidaError {
+  NoEsParticipanteError() : super(403, 'NO_ES_PARTICIPANTE', 'No formas parte de esta partida.');
+}
+
+class PartidaNoEligiendoNumerosError extends PartidaError {
+  PartidaNoEligiendoNumerosError()
+      : super(
+          409,
+          'PARTIDA_NO_ELIGIENDO_NUMEROS',
+          'La partida no esta en la etapa de elegir numeros iniciales.',
+        );
+}
+
+class NumerosInicialesInvalidosError extends PartidaError {
+  NumerosInicialesInvalidosError(String message) : super(400, 'NUMEROS_INICIALES_INVALIDOS', message);
+}
