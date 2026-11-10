@@ -4,6 +4,7 @@ import 'package:equatable/equatable.dart';
 /// tabla `partidas` (ver `server/lib/partidas/modelos.dart`).
 class EstadoPartida {
   static const String lobby = 'lobby';
+  static const String eligiendoNumeros = 'eligiendo_numeros';
   static const String enCurso = 'en_curso';
   static const String finalizada = 'finalizada';
 }
@@ -23,6 +24,7 @@ class Participante extends Equatable {
     required this.ordenTurno,
     required this.estado,
     required this.esCreador,
+    this.numerosListos = false,
   });
 
   final String usuarioId;
@@ -31,6 +33,10 @@ class Participante extends Equatable {
   final String estado;
   final bool esCreador;
 
+  /// Si ya confirmó sus números iniciales. Los números en sí nunca viajan:
+  /// son privados hasta que arranca la partida.
+  final bool numerosListos;
+
   factory Participante.fromJson(Map<String, dynamic> json) {
     return Participante(
       usuarioId: json['usuarioId'] as String,
@@ -38,11 +44,12 @@ class Participante extends Equatable {
       ordenTurno: json['ordenTurno'] as int,
       estado: json['estado'] as String,
       esCreador: json['esCreador'] as bool,
+      numerosListos: json['numerosListos'] as bool? ?? false,
     );
   }
 
   @override
-  List<Object?> get props => [usuarioId, nombreUsuario, ordenTurno, estado, esCreador];
+  List<Object?> get props => [usuarioId, nombreUsuario, ordenTurno, estado, esCreador, numerosListos];
 }
 
 /// El lobby/estado de una partida tal como lo devuelve la API REST

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'numeros_iniciales_partida_screen.dart';
 import 'partida.dart';
 import 'partida_api.dart';
 import 'partida_error_banner.dart';
@@ -32,9 +33,11 @@ class LobbyScreen extends StatefulWidget {
   final Partida partidaInicial;
   final Duration intervaloRefresco;
 
-  /// Se llama la primera vez que se detecta que la partida ya empezó (ya
-  /// sea porque este jugador la inició, o porque el creador lo hizo desde
-  /// otro lado). Si no se pasa, el lobby entra solo a la partida.
+  /// Se llama la primera vez que se detecta que la partida ya salió del
+  /// lobby (ya sea porque este jugador la inició, o porque el creador lo
+  /// hizo desde otro lado). Si no se pasa, el lobby sigue solo a la
+  /// pantalla que corresponda: elegir números iniciales o, si ya están
+  /// todos confirmados, la partida.
   final void Function(Partida partida)? onPartidaIniciada;
 
   /// Cómo construir el socket para entrar a la partida cuando no hay
@@ -84,19 +87,41 @@ class _LobbyScreenState extends State<LobbyScreen> {
   }
 
   void _avisarSiYaEstaIniciada() {
-    if (_avisoPartidaIniciada || _partida.estado != EstadoPartida.enCurso) return;
+    if (_avisoPartidaIniciada || _partida.estado == EstadoPartida.lobby) return;
     _avisoPartidaIniciada = true;
+    _timer?.cancel();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final callback = widget.onPartidaIniciada;
       if (callback != null) {
         callback(_partida);
+      } else if (_partida.estado == EstadoPartida.eligiendoNumeros) {
+        _irAElegirNumeros();
       } else {
         _entrarAlJuego();
       }
     });
   }
 
+  /// Lo normal al salir del lobby: cada jugador elige primero los números
+  /// iniciales de su tablero, y de ahí pasa solo a la partida.
+  void _irAElegirNumeros() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => NumerosInicialesPartidaScreen(
+          api: widget.api,
+          token: widget.token,
+          usuarioId: widget.usuarioId,
+          partidaInicial: _partida,
+          intervaloRefresco: widget.intervaloRefresco,
+          crearSocket: widget.crearSocket,
+        ),
+      ),
+    );
+  }
+
+  /// Solo pasa si se llega al lobby de una partida que ya está jugándose
+  /// (todos confirmaron sus números antes de que este jugador volviera).
   void _entrarAlJuego() {
     final socket = (widget.crearSocket ?? () => PartidaSocket(baseUrl: widget.api.baseUrl))()
       ..conectar(_partida.codigoInvitacion, widget.token);
@@ -160,7 +185,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
                 for (var i = _partida.participantes.length; i < _partida.maxJugadores; i++)
                   const _FilaJugadorVacia(),
                 const SizedBox(height: 32),
-                if (_partida.estado == EstadoPartida.enCurso)
+                if (_partida.estado != EstadoPartida.lobby)
                   Text(
                     '¡La partida ya empezó!',
                     textAlign: TextAlign.center,

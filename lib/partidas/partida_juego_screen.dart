@@ -10,14 +10,18 @@ import '../tablero_widget.dart';
 import 'estado_partida_en_vivo.dart';
 import 'partida.dart';
 import 'partida_exception.dart';
+import 'partida_fin_screen.dart';
 import 'partida_socket.dart';
 
-/// La partida multijugador en curso: el mismo tablero del modo de un
-/// jugador, pero el estado llega del servidor por [socket] en vez de un
-/// `JuegoCubit` local, y las jugadas se mandan ahí en vez de aplicarse acá
-/// (el servidor es quien manda — ver `SalaDePartida`). Mientras no es tu
-/// turno, el tablero deja de resaltar casillas y los controles quedan
-/// deshabilitados, pero se sigue viendo en vivo lo que juega el resto.
+/// La partida multijugador en curso. Cada jugador tiene su propio tablero y
+/// su propio puntaje; los dados se tiran una vez por ronda (le toca a uno
+/// distinto cada vez) y valen para todos, que juegan a la vez, cada uno en
+/// el suyo. El estado llega del servidor por [socket] y las jugadas se
+/// mandan ahí en vez de aplicarse acá (el servidor es quien manda — ver
+/// `SalaDePartida`).
+///
+/// El tablero grande es el propio; tocando a otro jugador en la fila de
+/// puntajes se ve el suyo en vivo, sin poder tocarlo.
 class PartidaJuegoScreen extends StatefulWidget {
   const PartidaJuegoScreen({super.key, required this.socket, required this.usuarioId});
 
@@ -39,10 +43,15 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
   // se deshabilitan los controles, aunque siga viéndose el último estado.
   bool _conectado = true;
 
-  // Cuántos eventos de puntuación ya se mostraron como notificación. Mismo
-  // propósito que su equivalente en `JuegoScreen`: no repetir un aviso
-  // viejo en una reconstrucción normal.
-  int _eventosPuntuacionMostrados = 0;
+  // Cuántos eventos de puntuación ya se avisaron. `null` hasta que llega el
+  // primer estado: los puntos que ya existían al entrar (o al volver a
+  // entrar a una partida empezada) no se anuncian de nuevo.
+  int? _eventosPuntuacionAvisados;
+
+  // De quién es el tablero que se está mirando. `null` es el propio.
+  String? _jugadorObservado;
+
+  bool _yaFueAlFinal = false;
 
   @override
   void initState() {
@@ -68,12 +77,34 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
 
   void _alRecibirEstado(EstadoPartidaEnVivo estado) {
     if (!mounted) return;
-    for (var i = _eventosPuntuacionMostrados; i < estado.eventosPuntuacion.length; i++) {
-      final evento = estado.eventosPuntuacion[i];
+
+    if (estado.terminada) {
+      if (_yaFueAlFinal) return;
+      _yaFueAlFinal = true;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => PartidaFinScreen(estado: estado, usuarioId: widget.usuarioId),
+        ),
+      );
+      return;
+    }
+
+    final avisados = _eventosPuntuacionAvisados;
+    if (avisados != null) {
+      for (var i = avisados; i < estado.eventosPuntuacion.length; i++) {
+        _avisarPuntuacion(estado, estado.eventosPuntuacion[i]);
+      }
+    }
+    _eventosPuntuacionAvisados = estado.eventosPuntuacion.length;
+    setState(() => _estado = estado);
+  }
+
+  void _avisarPuntuacion(EstadoPartidaEnVivo estado, EventoPuntuacionRemoto evento) {
+    if (evento.jugadorId == widget.usuarioId) {
       mostrarNotificacionPuntuacion(
         context,
         EventoPuntuacion(
-          turno: evento.turno,
+          turno: evento.ronda,
           jugadorId: evento.jugadorId,
           colorZona: evento.colorZona,
           zonaId: evento.zonaId,
@@ -81,14 +112,25 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
           puntosObtenidos: evento.puntosObtenidos,
         ),
       );
+      return;
     }
-    _eventosPuntuacionMostrados = estado.eventosPuntuacion.length;
-    setState(() => _estado = estado);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '${_nombreDe(estado, evento.jugadorId)} completó ${evento.nombreZona}: '
+          '+${evento.puntosObtenidos} puntos',
+        ),
+      ),
+    );
   }
 
   void _alRecibirError(PartidaException error) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message)));
+  }
+
+  String _nombreDe(EstadoPartidaEnVivo estado, String usuarioId) {
+    return estado.participantes.firstWhere((p) => p.usuarioId == usuarioId).nombreUsuario;
   }
 
   @override
@@ -99,17 +141,26 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
     }
 
     final nivel = configuracionPorId(estado.nivelId)!;
+    final miTablero = estado.tableros[widget.usuarioId]!;
     final juego = JuegoEstado(
-      tablero: estado.tablero,
+      tablero: miTablero.tablero,
       dados: estado.dados,
-      numeroAnclaElegido: estado.numeroAnclaElegido,
-      ancla: estado.ancla,
+      numeroAnclaElegido: miTablero.numeroAnclaElegido,
+      ancla: miTablero.ancla,
       zonas: nivel.zonas,
       nombresDeZona: nivel.nombresDeZona,
       nivelId: nivel.id,
     );
-    final esMiTurno = estado.turnoUsuarioId == widget.usuarioId;
-    final puedoJugar = esMiTurno && _conectado;
+
+    final meTocaTirar = estado.jugadorQueTira == widget.usuarioId;
+    final yaActue = estado.jugadoresQueYaActuaron.contains(widget.usuarioId);
+    final puedoTirar = _conectado && meTocaTirar && estado.dados == null;
+    final puedoActuar = _conectado && estado.dados != null && !yaActue;
+
+    final observado = _jugadorObservado;
+    final mirandoElMio = observado == null || !estado.tableros.containsKey(observado);
+    final tableroVisible = mirandoElMio ? miTablero : estado.tableros[observado]!;
+
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
@@ -154,29 +205,49 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
               ),
               const SizedBox(height: 12),
             ],
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              decoration: BoxDecoration(
-                color: colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                'Puntaje: ${estado.puntaje}',
-                style: textTheme.titleLarge?.copyWith(color: colorScheme.onPrimaryContainer),
+            Text(
+              'Ronda ${estado.numeroRonda} · Se juega a ${puntajeMinimoMultijugador(estado.participantes.length)} puntos',
+              style: textTheme.labelLarge?.copyWith(color: colorScheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 8),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (final participante in estado.participantes)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: _PuntajeJugador(
+                        nombre: participante.usuarioId == widget.usuarioId ? 'Vos' : participante.nombreUsuario,
+                        puntaje: estado.tableros[participante.usuarioId]!.puntaje,
+                        tiraLosDados: participante.usuarioId == estado.jugadorQueTira,
+                        yaActuo: estado.jugadoresQueYaActuaron.contains(participante.usuarioId),
+                        desconectado: participante.estado == EstadoParticipante.desconectado,
+                        seleccionado: mirandoElMio
+                            ? participante.usuarioId == widget.usuarioId
+                            : participante.usuarioId == observado,
+                        onTap: () => setState(() {
+                          _jugadorObservado = participante.usuarioId == widget.usuarioId ? null : participante.usuarioId;
+                        }),
+                      ),
+                    ),
+                ],
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              _instruccion(estado, juego, esMiTurno),
+              mirandoElMio
+                  ? _instruccion(estado, juego)
+                  : 'Estás viendo el tablero de ${_nombreDe(estado, observado)}. Tocá "Vos" para volver al tuyo.',
               textAlign: TextAlign.center,
               style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: 12),
             ParDadosWidget(
               dados: estado.dados,
-              numeroSeleccionado: estado.numeroAnclaElegido,
-              seleccionHabilitada: puedoJugar && estado.dados != null && estado.ancla == null,
-              onSeleccionar: puedoJugar ? widget.socket.seleccionarDado : null,
+              numeroSeleccionado: miTablero.numeroAnclaElegido,
+              seleccionHabilitada: puedoActuar && mirandoElMio && miTablero.ancla == null,
+              onSeleccionar: puedoActuar && mirandoElMio ? widget.socket.seleccionarDado : null,
             ),
             const SizedBox(height: 12),
             Expanded(
@@ -189,16 +260,16 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
                       padding: const EdgeInsets.all(4),
                       child: TableroWidget(
                         layout: nivel.layout,
-                        valores: estado.tablero,
+                        valores: tableroVisible.tablero,
                         estrellas: nivel.casillasEstrella.toSet(),
-                        resaltadas: !puedoJugar
+                        resaltadas: !(puedoActuar && mirandoElMio)
                             ? const {}
                             : juego.ancla != null
                                 ? juego.casillasValidas.toSet()
                                 : juego.casillasAnclaPosibles,
                         repetidas: const {},
-                        seleccionada: estado.ancla,
-                        onTap: (posicion) => _tocarCasilla(juego, puedoJugar, posicion),
+                        seleccionada: tableroVisible.ancla,
+                        onTap: (posicion) => _tocarCasilla(juego, puedoActuar && mirandoElMio, posicion),
                       ),
                     ),
                   ),
@@ -212,12 +283,12 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
               runSpacing: 8,
               children: [
                 ElevatedButton(
-                  onPressed: puedoJugar && juego.puedeVolverATirar ? widget.socket.tirarDados : null,
+                  onPressed: puedoTirar ? widget.socket.tirarDados : null,
                   child: const Text('Tirar dados'),
                 ),
                 OutlinedButton(
-                  onPressed: puedoJugar ? () => _confirmarSaltarTurno(context, juego) : null,
-                  child: const Text('Saltar turno'),
+                  onPressed: puedoActuar ? () => _confirmarPasarRonda(context, juego) : null,
+                  child: const Text('Pasar ronda'),
                 ),
               ],
             ),
@@ -227,53 +298,58 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
     );
   }
 
-  void _tocarCasilla(JuegoEstado juego, bool puedoJugar, PosicionCasilla posicion) {
-    if (!puedoJugar) return;
-    if (juego.ancla != null && juego.casillasValidas.contains(posicion)) {
-      widget.socket.tocarCasilla(posicion.fila, posicion.columna);
-      return;
-    }
-    if (juego.casillasAnclaPosibles.contains(posicion)) {
+  void _tocarCasilla(JuegoEstado juego, bool puedoActuar, PosicionCasilla posicion) {
+    if (!puedoActuar) return;
+    final esDestino = juego.ancla != null && juego.casillasValidas.contains(posicion);
+    if (esDestino || juego.casillasAnclaPosibles.contains(posicion)) {
       widget.socket.tocarCasilla(posicion.fila, posicion.columna);
     }
   }
 
-  String _instruccion(EstadoPartidaEnVivo estado, JuegoEstado juego, bool esMiTurno) {
-    if (!esMiTurno) {
-      final quienJuega = estado.participantes.firstWhere(
-        (p) => p.usuarioId == estado.turnoUsuarioId,
-        orElse: () => estado.participantes.first,
-      );
-      if (quienJuega.estado == EstadoParticipante.desconectado) {
-        return '${quienJuega.nombreUsuario} se desconectó. Si no vuelve, se le salta el turno.';
-      }
-      return 'Turno de ${quienJuega.nombreUsuario}. Esperá tu turno.';
-    }
-
+  String _instruccion(EstadoPartidaEnVivo estado, JuegoEstado juego) {
     final dados = estado.dados;
     if (dados == null) {
-      return 'Tira los dados para empezar.';
+      if (estado.jugadorQueTira == widget.usuarioId) {
+        return 'Te toca tirar los dados para todos.';
+      }
+      final quienTira = estado.participantes.firstWhere((p) => p.usuarioId == estado.jugadorQueTira);
+      if (quienTira.estado == EstadoParticipante.desconectado) {
+        return '${quienTira.nombreUsuario} se desconectó. Si no vuelve, tira el siguiente jugador.';
+      }
+      return 'Esperando a que ${quienTira.nombreUsuario} tire los dados.';
+    }
+
+    if (estado.jugadoresQueYaActuaron.contains(widget.usuarioId)) {
+      final faltan = [
+        for (final p in estado.participantes)
+          if (estado.tableros.containsKey(p.usuarioId) && !estado.jugadoresQueYaActuaron.contains(p.usuarioId))
+            p.nombreUsuario,
+      ];
+      return 'Ya jugaste esta ronda. Esperando a ${faltan.join(', ')}.';
+    }
+    if (juego.puedeVolverATirar) {
+      return 'No tenés ninguna jugada con ${dados[0]} y ${dados[1]}. Pasá la ronda.';
     }
     if (juego.ancla != null) {
-      return 'Toca una casilla iluminada para colocar el ${juego.numeroAColocar}.';
+      return 'Tocá una casilla iluminada para colocar el ${juego.numeroAColocar}.';
     }
-    if (estado.numeroAnclaElegido != null) {
-      return 'Toca una casilla con el ${estado.numeroAnclaElegido} para usarla de ancla.';
+    if (juego.numeroAnclaElegido != null) {
+      return 'Tocá una casilla con el ${juego.numeroAnclaElegido} para usarla de ancla.';
     }
-    return 'Dados: ${dados[0]} y ${dados[1]}. Toca uno de los dados para elegir con cuál número anclar.';
+    return 'Dados: ${dados[0]} y ${dados[1]}. Tocá uno de los dados para elegir con cuál número anclar.';
   }
 
-  Future<void> _confirmarSaltarTurno(BuildContext context, JuegoEstado juego) async {
-    final hayJugada = juego.dados != null && !juego.puedeVolverATirar;
+  Future<void> _confirmarPasarRonda(BuildContext context, JuegoEstado juego) async {
+    final hayJugada = !juego.puedeVolverATirar;
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Saltar turno'),
+          title: const Text('Pasar ronda'),
           content: Text(
             hayJugada
-                ? 'Tienes una jugada disponible. Si saltas el turno, perderás esta oportunidad.'
-                : '¿Quieres saltar el turno?',
+                ? 'Tenés una jugada disponible. Si pasás, no colocás ningún número con estos dados.'
+                : 'No colocás ningún número con estos dados.',
           ),
           actions: [
             TextButton(
@@ -282,7 +358,7 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Saltar turno'),
+              child: const Text('Pasar ronda'),
             ),
           ],
         );
@@ -290,7 +366,7 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
     );
 
     if (confirmar == true) {
-      widget.socket.saltarTurno();
+      widget.socket.pasarRonda();
     }
   }
 
@@ -312,6 +388,79 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
           ],
         );
       },
+    );
+  }
+}
+
+/// El puntaje de un jugador en la fila de arriba del tablero. Muestra
+/// además si le toca tirar, si ya jugó esta ronda y si está desconectado;
+/// al tocarlo se pasa a ver su tablero.
+class _PuntajeJugador extends StatelessWidget {
+  const _PuntajeJugador({
+    required this.nombre,
+    required this.puntaje,
+    required this.tiraLosDados,
+    required this.yaActuo,
+    required this.desconectado,
+    required this.seleccionado,
+    required this.onTap,
+  });
+
+  final String nombre;
+  final int puntaje;
+  final bool tiraLosDados;
+  final bool yaActuo;
+  final bool desconectado;
+  final bool seleccionado;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final colorTexto = seleccionado ? colorScheme.onPrimaryContainer : colorScheme.onSurface;
+
+    return Material(
+      color: seleccionado ? colorScheme.primaryContainer : colorScheme.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 48),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(nombre, style: textTheme.labelMedium?.copyWith(color: colorTexto)),
+                    Text('$puntaje pts', style: textTheme.titleMedium?.copyWith(color: colorTexto)),
+                  ],
+                ),
+                if (tiraLosDados) ...[
+                  const SizedBox(width: 8),
+                  Tooltip(message: 'Tira los dados', child: Icon(Icons.casino, size: 18, color: colorTexto)),
+                ],
+                if (yaActuo) ...[
+                  const SizedBox(width: 8),
+                  Tooltip(
+                    message: 'Ya jugó esta ronda',
+                    child: Icon(Icons.check_circle, size: 18, color: colorTexto),
+                  ),
+                ],
+                if (desconectado) ...[
+                  const SizedBox(width: 8),
+                  Tooltip(message: 'Desconectado', child: Icon(Icons.cloud_off, size: 18, color: colorScheme.error)),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
 import 'package:brilliant/partidas/lobby_screen.dart';
+import 'package:brilliant/partidas/numeros_iniciales_partida_screen.dart';
 import 'package:brilliant/partidas/partida.dart';
 import 'package:brilliant/partidas/partida_api.dart';
 import 'package:brilliant/partidas/partida_juego_screen.dart';
@@ -137,11 +138,10 @@ void main() {
         id: partidaLobby.id,
         codigoInvitacion: partidaLobby.codigoInvitacion,
         nivelId: partidaLobby.nivelId,
-        estado: 'en_curso',
+        estado: 'eligiendo_numeros',
         creadorId: partidaLobby.creadorId,
         maxJugadores: partidaLobby.maxJugadores,
         participantes: partidaLobby.participantes,
-        turnoUsuarioId: 'u1',
       );
       final client = MockClient((request) async {
         if (request.url.path.endsWith('/iniciar')) {
@@ -169,10 +169,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('¡La partida ya empezó!'), findsOneWidget);
-      expect(iniciadaRecibida?.estado, 'en_curso');
+      expect(iniciadaRecibida?.estado, 'eligiendo_numeros');
     });
 
-    testWidgets('sin onPartidaIniciada, entra solo a la partida cuando arranca', (tester) async {
+    testWidgets('sin onPartidaIniciada, al iniciar pasa solo a elegir los numeros iniciales', (tester) async {
       final partidaLobby = _partida(
         participantes: [_participante('u1', 'creador', 0, esCreador: true), _participante('u2', 'invitado', 1)],
       );
@@ -180,11 +180,10 @@ void main() {
         id: partidaLobby.id,
         codigoInvitacion: partidaLobby.codigoInvitacion,
         nivelId: partidaLobby.nivelId,
-        estado: 'en_curso',
+        estado: 'eligiendo_numeros',
         creadorId: partidaLobby.creadorId,
         maxJugadores: partidaLobby.maxJugadores,
         participantes: partidaLobby.participantes,
-        turnoUsuarioId: 'u1',
       );
       final client = MockClient((request) async {
         if (request.url.path.endsWith('/iniciar')) {
@@ -192,6 +191,68 @@ void main() {
         }
         return http.Response(jsonEncode({'partida': _partidaJson(partidaLobby)}), 200);
       });
+      final api = PartidaApi(baseUrl: 'http://test', client: client);
+      addTearDown(() => tester.pumpWidget(const SizedBox()));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LobbyScreen(
+            api: api,
+            token: 'token-1',
+            usuarioId: 'u1',
+            partidaInicial: partidaLobby,
+          ),
+        ),
+      );
+
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Iniciar partida'));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.byType(NumerosInicialesPartidaScreen), findsOneWidget);
+    });
+
+    testWidgets('quien no es el creador tambien pasa a elegir numeros cuando el creador inicia', (tester) async {
+      final partidaLobby = _partida(
+        creadorId: 'otro',
+        participantes: [_participante('otro', 'creador', 0, esCreador: true), _participante('u2', 'yo', 1)],
+      );
+      final partidaIniciada = _partida(
+        estado: 'eligiendo_numeros',
+        creadorId: 'otro',
+        participantes: partidaLobby.participantes,
+      );
+      final client = MockClient((request) async {
+        return http.Response(jsonEncode({'partida': _partidaJson(partidaIniciada)}), 200);
+      });
+      final api = PartidaApi(baseUrl: 'http://test', client: client);
+
+      addTearDown(() => tester.pumpWidget(const SizedBox()));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LobbyScreen(
+            api: api,
+            token: 'token-2',
+            usuarioId: 'u2',
+            partidaInicial: partidaLobby,
+            intervaloRefresco: const Duration(milliseconds: 100),
+          ),
+        ),
+      );
+
+      await tester.pump(const Duration(milliseconds: 150));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.byType(NumerosInicialesPartidaScreen), findsOneWidget);
+    });
+
+    testWidgets('si la partida ya esta en curso al llegar al lobby, entra directo a jugar', (tester) async {
+      final partida = _partida(
+        estado: 'en_curso',
+        participantes: [_participante('u1', 'creador', 0, esCreador: true), _participante('u2', 'invitado', 1)],
+      );
+      final client = MockClient((request) async => http.Response(jsonEncode({'partida': _partidaJson(partida)}), 200));
       final api = PartidaApi(baseUrl: 'http://test', client: client);
       final canalFalso = _CanalFalso();
 
@@ -202,7 +263,7 @@ void main() {
             api: api,
             token: 'token-1',
             usuarioId: 'u1',
-            partidaInicial: partidaLobby,
+            partidaInicial: partida,
             crearSocket: () => PartidaSocket(baseUrl: 'http://test', crearCanal: (_) => canalFalso),
           ),
         ),
@@ -211,8 +272,6 @@ void main() {
       // No se usa pumpAndSettle: PartidaJuegoScreen muestra un loader
       // indeterminado hasta que llega el primer estado, que nunca se
       // asienta solo.
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Iniciar partida'));
-      await tester.pump();
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 

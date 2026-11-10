@@ -73,6 +73,26 @@ void main() {
       expect(partida.turnoUsuarioId, 'u1');
     });
 
+    test('elegirNumerosIniciales manda los numeros y devuelve quien ya esta listo', () async {
+      http.Request? solicitudCapturada;
+      final client = MockClient((request) async {
+        solicitudCapturada = request;
+        final partida = _partidaJson()..['estado'] = 'eligiendo_numeros';
+        (partida['participantes'] as List).cast<Map<String, dynamic>>().single['numerosListos'] = true;
+        return http.Response(jsonEncode({'partida': partida}), 200);
+      });
+      final api = PartidaApi(baseUrl: 'http://test', client: client);
+
+      final partida = await api.elegirNumerosIniciales('ABC123', token: 'token-1', numeros: [1, 2, 3, 4, 5, 6]);
+
+      expect(solicitudCapturada!.url.path, '/partidas/ABC123/numeros-iniciales');
+      expect(jsonDecode(solicitudCapturada!.body), {
+        'numeros': [1, 2, 3, 4, 5, 6],
+      });
+      expect(partida.estado, 'eligiendo_numeros');
+      expect(partida.participantes.single.numerosListos, isTrue);
+    });
+
     test('un error del servidor se traduce a PartidaException con su code y message', () async {
       final client = MockClient((request) async {
         return http.Response(

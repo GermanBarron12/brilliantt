@@ -39,6 +39,14 @@ class PartidaApi {
     return Partida.fromJson(cuerpo['partida'] as Map<String, dynamic>);
   }
 
+  /// Confirma los números iniciales propios (uno por estrella del nivel, en
+  /// el mismo orden que las estrellas). Cuando ya confirmaron todos, la
+  /// partida que devuelve viene en estado `en_curso`.
+  Future<Partida> elegirNumerosIniciales(String codigo, {required String token, required List<int> numeros}) async {
+    final cuerpo = await _post('/partidas/$codigo/numeros-iniciales', {'numeros': numeros}, token: token);
+    return Partida.fromJson(cuerpo['partida'] as Map<String, dynamic>);
+  }
+
   Future<Map<String, dynamic>> _post(String path, Map<String, dynamic> body, {String? token}) {
     return _request('POST', path, body: body, token: token);
   }

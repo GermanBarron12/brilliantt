@@ -63,7 +63,7 @@ class PartidaSocket {
   final _errores = StreamController<PartidaException>.broadcast();
   final _conexion = StreamController<bool>.broadcast();
 
-  /// Cada actualización del tablero y el turno, a medida que llegan.
+  /// Cada actualización de la ronda y los tableros, a medida que llegan.
   Stream<EstadoPartidaEnVivo> get estados => _estados.stream;
 
   /// Errores de una jugada propia rechazada por el servidor (por ejemplo,
@@ -144,7 +144,8 @@ class PartidaSocket {
 
   void tocarCasilla(int fila, int columna) => _enviar({'tipo': 'tocar_casilla', 'fila': fila, 'columna': columna});
 
-  void saltarTurno() => _enviar({'tipo': 'saltar_turno'});
+  /// Pasa la jugada propia de esta ronda sin colocar ningún número.
+  void pasarRonda() => _enviar({'tipo': 'pasar_ronda'});
 
   void _enviar(Map<String, dynamic> mensaje) {
     _canal?.enviar(jsonEncode(mensaje));

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:brilliant_core/brilliant_core.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:brilliant/partidas/partida_exception.dart';
@@ -29,20 +30,62 @@ class _CanalFalso implements CanalPartida {
 Map<String, dynamic> _estadoJson() => {
       'tipo': 'estado',
       'partida': {
-        'tablero': [
-          [1, null],
-          [null, 2],
-        ],
+        'numeroRonda': 3,
+        'jugadorQueTira': 'u1',
         'dados': [3, 4],
-        'numeroAnclaElegido': null,
-        'ancla': null,
-        'puntaje': 5,
         'nivelId': 1,
-        'turnoUsuarioId': 'u1',
+        'terminada': false,
+        'ganadores': [],
+        'jugadoresQueYaActuaron': ['u2'],
         'participantes': [
-          {'usuarioId': 'u1', 'nombreUsuario': 'creador', 'ordenTurno': 0, 'estado': 'conectado', 'esCreador': true},
+          {
+            'usuarioId': 'u1',
+            'nombreUsuario': 'creador',
+            'ordenTurno': 0,
+            'estado': 'conectado',
+            'esCreador': true,
+            'numerosListos': true,
+          },
+          {
+            'usuarioId': 'u2',
+            'nombreUsuario': 'invitado',
+            'ordenTurno': 1,
+            'estado': 'conectado',
+            'esCreador': false,
+            'numerosListos': true,
+          },
         ],
-        'eventosPuntuacion': [],
+        'tableros': {
+          'u1': {
+            'tablero': [
+              [1, null],
+              [null, 2],
+            ],
+            'ancla': {'fila': 0, 'columna': 0},
+            'numeroAnclaElegido': 3,
+            'puntaje': 5,
+          },
+          'u2': {
+            'tablero': [
+              [null, 6],
+              [null, null],
+            ],
+            'ancla': null,
+            'numeroAnclaElegido': null,
+            'puntaje': 0,
+          },
+        },
+        'eventosPuntuacion': [
+          {
+            'ronda': 2,
+            'jugadorId': 'u1',
+            'colorZona': 'azul',
+            'zonaId': 'azul_f0_c2',
+            'nombreZona': 'Zona azul',
+            'escalon': 0,
+            'puntosObtenidos': 5,
+          },
+        ],
       },
     };
 
@@ -97,13 +140,22 @@ void main() {
       canalFalso.simularMensajeDelServidor(_estadoJson());
       final estado = await futuro;
 
-      expect(estado.turnoUsuarioId, 'u1');
-      expect(estado.puntaje, 5);
+      expect(estado.numeroRonda, 3);
+      expect(estado.jugadorQueTira, 'u1');
       expect(estado.dados, [3, 4]);
-      expect(estado.tablero, [
+      expect(estado.terminada, isFalse);
+      expect(estado.jugadoresQueYaActuaron, {'u2'});
+      expect(estado.tableros.keys, ['u1', 'u2']);
+      expect(estado.tableros['u1']!.tablero, [
         [1, null],
         [null, 2],
       ]);
+      expect(estado.tableros['u1']!.ancla, const PosicionCasilla(0, 0));
+      expect(estado.tableros['u1']!.numeroAnclaElegido, 3);
+      expect(estado.tableros['u1']!.puntaje, 5);
+      expect(estado.tableros['u2']!.puntaje, 0);
+      expect(estado.eventosPuntuacion.single.escalon, 0);
+      expect(estado.eventosPuntuacion.single.colorZona, ColorZona.azul);
     });
 
     test('un mensaje de tipo error llega por el stream de errores', () async {
@@ -143,12 +195,12 @@ void main() {
       expect(canalFalso.enviados, [{'tipo': 'tocar_casilla', 'fila': 2, 'columna': 3}]);
     });
 
-    test('saltarTurno manda el mensaje correcto', () {
+    test('pasarRonda manda el mensaje correcto', () {
       socket.conectar('ABC123', 'token-1');
 
-      socket.saltarTurno();
+      socket.pasarRonda();
 
-      expect(canalFalso.enviados, [{'tipo': 'saltar_turno'}]);
+      expect(canalFalso.enviados, [{'tipo': 'pasar_ronda'}]);
     });
 
     test('cerrar cierra el canal subyacente', () async {
