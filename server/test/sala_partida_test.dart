@@ -626,4 +626,166 @@ void main() {
       await canal.sink.close();
     });
   });
+
+  group('rendirse', () {
+    /// Igual que `_crearPartidaDeDosIniciada`, pero con un tercer jugador.
+    /// Devuelve el código y los tokens en el orden en que les toca tirar.
+    Future<(String codigo, List<String> tokens)> crearPartidaDeTresIniciada() async {
+      final tokens = [await registrar('ana_r'), await registrar('beto_r'), await registrar('caro_r')];
+      final creada = await post('/partidas', {'nivelId': 1, 'maxJugadores': 4}, token: tokens[0]);
+      final codigo = (jsonDecode(creada.body)['partida'] as Map)['codigoInvitacion'] as String;
+      await post('/partidas/$codigo/unirse', {}, token: tokens[1]);
+      await post('/partidas/$codigo/unirse', {}, token: tokens[2]);
+      await post('/partidas/$codigo/iniciar', {}, token: tokens[0]);
+      await post('/partidas/$codigo/numeros-iniciales', {'numeros': [1, 2, 3, 4, 5, 6]}, token: tokens[0]);
+      await post('/partidas/$codigo/numeros-iniciales', {'numeros': [2, 3, 4, 5, 6, 1]}, token: tokens[1]);
+      await post('/partidas/$codigo/numeros-iniciales', {'numeros': [3, 4, 5, 6, 1, 2]}, token: tokens[2]);
+      return (codigo, tokens);
+    }
+
+    String estadoDe(Map partida, String nombreUsuario) {
+      return (partida['participantes'] as List)
+          .cast<Map<String, dynamic>>()
+          .firstWhere((p) => p['nombreUsuario'] == nombreUsuario)['estado'] as String;
+    }
+
+    test('en una partida de dos, si uno se rinde la partida termina y gana el otro', () async {
+      final (codigo, tokenPrimero, tokenSegundo) = await _crearPartidaDeDosIniciada();
+      final canalPrimero = WebSocketChannel.connect(servidor.wsUri('/partidas/$codigo/ws?token=$tokenPrimero'));
+      final mensajesPrimero = _mensajesDe(canalPrimero);
+      await mensajesPrimero.next;
+      final canalSegundo = WebSocketChannel.connect(servidor.wsUri('/partidas/$codigo/ws?token=$tokenSegundo'));
+      final mensajesSegundo = _mensajesDe(canalSegundo);
+      await mensajesSegundo.next;
+
+      canalSegundo.sink.add(jsonEncode({'tipo': 'rendirse'}));
+      final partida = (await mensajesPrimero.next)['partida'] as Map;
+      await mensajesSegundo.next;
+
+      expect(partida['terminada'], isTrue);
+      expect(partida['ganadores'], [servidor.idDeUsuario('creador_ws')]);
+      expect(estadoDe(partida, 'invitado_ws'), 'rendido');
+      final partidaDb = servidor.db.select('SELECT estado FROM partidas WHERE codigo_invitacion = ?', [codigo]).first;
+      expect(partidaDb['estado'], 'finalizada');
+
+      await mensajesPrimero.cancel();
+      await mensajesSegundo.cancel();
+      await canalPrimero.sink.close();
+      await canalSegundo.sink.close();
+    });
+
+    test('con tres jugadores la partida sigue; si se rinde a quien le tocaba tirar, tira el siguiente', () async {
+      final (codigo, tokens) = await crearPartidaDeTresIniciada();
+      final canalAna = WebSocketChannel.connect(servidor.wsUri('/partidas/$codigo/ws?token=${tokens[0]}'));
+      final mensajesAna = _mensajesDe(canalAna);
+      await mensajesAna.next;
+
+      canalAna.sink.add(jsonEncode({'tipo': 'rendirse'}));
+      final partida = (await mensajesAna.next)['partida'] as Map;
+
+      expect(partida['terminada'], isFalse);
+      expect(partida['jugadorQueTira'], servidor.idDeUsuario('beto_r'));
+      expect(partida['numeroRonda'], 1);
+      expect(estadoDe(partida, 'ana_r'), 'rendido');
+
+      // Ya rendida, no puede tirar ni rendirse de nuevo.
+      canalAna.sink.add(jsonEncode({'tipo': 'tirar_dados'}));
+      expect(((await mensajesAna.next)['error'] as Map)['code'], 'NO_TE_TOCA_TIRAR');
+      canalAna.sink.add(jsonEncode({'tipo': 'rendirse'}));
+      expect(((await mensajesAna.next)['error'] as Map)['code'], 'JUGADA_INVALIDA');
+
+      await mensajesAna.cancel();
+      await canalAna.sink.close();
+    });
+
+    test('si la ronda solo esperaba por quien se rinde, se cierra sola', () async {
+      final (codigo, tokens) = await crearPartidaDeTresIniciada();
+      final canales = [
+        for (final token in tokens) WebSocketChannel.connect(servidor.wsUri('/partidas/$codigo/ws?token=$token')),
+      ];
+      final mensajesAna = _mensajesDe(canales[0]);
+      await mensajesAna.next;
+      // Los otros dos solo mandan: lo que reciben no se mira.
+      canales[1].stream.listen((_) {});
+      canales[2].stream.listen((_) {});
+
+      Future<Map> mandar(int quien, String tipo) async {
+        canales[quien].sink.add(jsonEncode({'tipo': tipo}));
+        return (await mensajesAna.next)['partida'] as Map;
+      }
+
+      await mandar(0, 'tirar_dados');
+      await mandar(0, 'pasar_ronda');
+      final antes = await mandar(1, 'pasar_ronda');
+      expect(antes['numeroRonda'], 1);
+
+      final despues = await mandar(2, 'rendirse');
+
+      expect(despues['numeroRonda'], 2);
+      expect(despues['dados'], isNull);
+      expect(despues['jugadorQueTira'], servidor.idDeUsuario('beto_r'));
+      expect(despues['terminada'], isFalse);
+
+      await mensajesAna.cancel();
+      for (final canal in canales) {
+        await canal.sink.close();
+      }
+    });
+
+    test('quien se rindio sigue rendido aunque se desconecte y vuelva a entrar', () async {
+      final (codigo, tokens) = await crearPartidaDeTresIniciada();
+      final canalCaro = WebSocketChannel.connect(servidor.wsUri('/partidas/$codigo/ws?token=${tokens[2]}'));
+      final mensajesCaro = _mensajesDe(canalCaro);
+      await mensajesCaro.next;
+      canalCaro.sink.add(jsonEncode({'tipo': 'rendirse'}));
+      await mensajesCaro.next;
+      await mensajesCaro.cancel();
+      await canalCaro.sink.close();
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+
+      final canalDeVuelta = WebSocketChannel.connect(servidor.wsUri('/partidas/$codigo/ws?token=${tokens[2]}'));
+      final mensajesDeVuelta = _mensajesDe(canalDeVuelta);
+      final partida = (await mensajesDeVuelta.next)['partida'] as Map;
+
+      expect(estadoDe(partida, 'caro_r'), 'rendido');
+      final fila = servidor.db.select(
+        'SELECT estado FROM participantes_partida WHERE usuario_id = ?',
+        [servidor.idDeUsuario('caro_r')],
+      ).first;
+      expect(fila['estado'], 'rendido');
+
+      await mensajesDeVuelta.cancel();
+      await canalDeVuelta.sink.close();
+    });
+
+    test('una rendicion ya guardada se respeta al reconstruir la partida', () async {
+      final (codigo, tokens) = await crearPartidaDeTresIniciada();
+      final partidaId =
+          servidor.db.select('SELECT id FROM partidas WHERE codigo_invitacion = ?', [codigo]).first['id'] as String;
+      final ana = servidor.idDeUsuario('ana_r');
+      final beto = servidor.idDeUsuario('beto_r');
+      final caro = servidor.idDeUsuario('caro_r');
+
+      servidor.insertarMovimientos(partidaId, [
+        (tipo: 'tirar_dados_compartido', payload: {'dados': [1, 1]}, usuarioId: ana),
+        (tipo: 'pasar_ronda_jugador', payload: <String, dynamic>{}, usuarioId: ana),
+        (tipo: 'rendirse_jugador', payload: <String, dynamic>{}, usuarioId: beto),
+        (tipo: 'pasar_ronda_jugador', payload: <String, dynamic>{}, usuarioId: caro),
+      ]);
+
+      final canal = WebSocketChannel.connect(servidor.wsUri('/partidas/$codigo/ws?token=${tokens[0]}'));
+      final mensajes = _mensajesDe(canal);
+      final partida = (await mensajes.next)['partida'] as Map;
+
+      // Beto se rindio a mitad de la ronda 1: la ronda cerro con ana y
+      // caro, y en la 2 tira caro (a beto, que sigue en el orden, se lo
+      // saltea).
+      expect(partida['numeroRonda'], 2);
+      expect(partida['jugadorQueTira'], caro);
+      expect(partida['terminada'], isFalse);
+
+      await mensajes.cancel();
+      await canal.sink.close();
+    });
+  });
 }

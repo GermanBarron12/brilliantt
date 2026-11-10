@@ -108,7 +108,7 @@ void main() {
 
       final boton = tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, 'Iniciar partida'));
       expect(boton.onPressed, isNull);
-      expect(find.text('Necesitás al menos 2 jugadores para empezar.'), findsOneWidget);
+      expect(find.text('Necesitas al menos 2 jugadores para empezar.'), findsOneWidget);
     });
 
     testWidgets('quien no es el creador ve el mensaje de espera, no el boton de iniciar', (tester) async {

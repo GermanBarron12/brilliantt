@@ -75,9 +75,9 @@ class PartidaMultijugadorEstado {
   /// actuales. Se vacía cada vez que se abre una ronda nueva.
   final Set<String> jugadoresQueYaActuaron;
 
-  /// Todos los jugadores que siguen en la partida (nadie se rinde todavía
-  /// — ver Fase 8). Fijo e igual a [ordenJugadores] mientras no exista esa
-  /// función.
+  /// Los jugadores que siguen en la partida, en el mismo orden que
+  /// [ordenJugadores]: todos menos los que se rindieron (ver
+  /// `aplicarRendirseJugador`).
   final List<String> jugadoresActivos;
 
   /// Cuántos escalones (0, 1 o 2) ya se gastaron de la carrera de cada
@@ -94,8 +94,8 @@ class PartidaMultijugadorEstado {
   final List<ZonaTablero> zonas;
   final Map<String, String> nombresDeZona;
 
-  /// true si la partida ya terminó (alguien llegó o superó el puntaje
-  /// mínimo al cierre de una ronda).
+  /// true si la partida ya terminó: alguien llegó o superó el puntaje
+  /// mínimo al cierre de una ronda, o quedó un solo jugador sin rendirse.
   final bool terminada;
 
   const PartidaMultijugadorEstado({
@@ -129,8 +129,9 @@ class PartidaMultijugadorEstado {
   /// jugadores con la que arrancó (ver [puntajeMinimoMultijugador]).
   int get puntajeMinimoParaTerminar => puntajeMinimoMultijugador(ordenJugadores.length);
 
-  /// Jugadores con el puntaje más alto al terminar la partida (puede ser
-  /// uno solo, o varios si comparten la victoria por empate). Lista vacía
+  /// Jugadores con el puntaje más alto al terminar la partida, entre los
+  /// que no se rindieron (puede ser uno solo, o varios si comparten la
+  /// victoria por empate). Lista vacía
   /// si la partida todavía no terminó: solo tiene sentido consultarla
   /// cuando [terminada] es true.
   List<String> get ganadores {

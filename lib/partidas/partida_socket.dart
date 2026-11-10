@@ -63,6 +63,13 @@ class PartidaSocket {
   final _errores = StreamController<PartidaException>.broadcast();
   final _conexion = StreamController<bool>.broadcast();
 
+  /// El último estado recibido, o null si todavía no llegó ninguno. Hace
+  /// falta porque [estados] no repite nada a quien se suscribe tarde: si el
+  /// primer estado llega antes de que la pantalla de la partida empiece a
+  /// escuchar, sin esto se quedaría esperando para siempre.
+  EstadoPartidaEnVivo? get ultimoEstado => _ultimoEstado;
+  EstadoPartidaEnVivo? _ultimoEstado;
+
   /// Cada actualización de la ronda y los tableros, a medida que llegan.
   Stream<EstadoPartidaEnVivo> get estados => _estados.stream;
 
@@ -92,13 +99,15 @@ class PartidaSocket {
     _canal = canal;
     _subscripcion = canal.stream.listen(
       _procesarMensaje,
-      onError: (_) => _manejarDesconexion(),
-      onDone: _manejarDesconexion,
+      onError: (_) => _manejarDesconexion(canal),
+      onDone: () => _manejarDesconexion(canal),
     );
   }
 
-  void _manejarDesconexion() {
-    if (_cerrado) return;
+  /// Un mismo corte puede avisar dos veces (error y cierre): solo cuenta el
+  /// primero, para no abrir dos conexiones nuevas a la vez.
+  void _manejarDesconexion(CanalPartida canal) {
+    if (_cerrado || _canal != canal) return;
     _canal = null;
     _subscripcion = null;
     _conexion.add(false);
@@ -129,7 +138,9 @@ class PartidaSocket {
           _intentosReconexion = 0;
           _conexion.add(true);
         }
-        _estados.add(EstadoPartidaEnVivo.fromJson(mensaje['partida'] as Map<String, dynamic>));
+        final estado = EstadoPartidaEnVivo.fromJson(mensaje['partida'] as Map<String, dynamic>);
+        _ultimoEstado = estado;
+        _estados.add(estado);
       case 'error':
         final error = mensaje['error'] as Map<String, dynamic>;
         _errores.add(PartidaException(error['code'] as String, error['message'] as String));
@@ -146,6 +157,10 @@ class PartidaSocket {
 
   /// Pasa la jugada propia de esta ronda sin colocar ningún número.
   void pasarRonda() => _enviar({'tipo': 'pasar_ronda'});
+
+  /// Abandona la partida: no se puede deshacer. El jugador puede seguir
+  /// mirando, pero ya no juega ni puede ganar.
+  void rendirse() => _enviar({'tipo': 'rendirse'});
 
   void _enviar(Map<String, dynamic> mensaje) {
     _canal?.enviar(jsonEncode(mensaje));

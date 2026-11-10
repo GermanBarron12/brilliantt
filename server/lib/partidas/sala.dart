@@ -25,6 +25,7 @@ class _TipoMovimiento {
   static const String tocarCasillaJugador = 'tocar_casilla_jugador';
   static const String pasarRondaJugador = 'pasar_ronda_jugador';
   static const String pasarTiradaPorDesconexion = 'pasar_tirada_por_desconexion';
+  static const String rendirseJugador = 'rendirse_jugador';
 }
 
 /// Reconstruye [estado] con [dados] fijos en el campo `dados` de un
@@ -221,6 +222,8 @@ class SalaDePartida {
         return aplicarPasarRondaJugador(estado, usuarioId!);
       case _TipoMovimiento.pasarTiradaPorDesconexion:
         return estado.copyWith(jugadorQueTira: payload['jugadorQueTira'] as String);
+      case _TipoMovimiento.rendirseJugador:
+        return aplicarRendirseJugador(estado, usuarioId!);
       default:
         throw StateError('Tipo de movimiento desconocido en la base de datos: $tipo');
     }
@@ -348,14 +351,24 @@ class SalaDePartida {
   /// Actualiza el estado de conexión de [usuarioId] en memoria y en la base
   /// de datos. No hace nada si ya estaba en ese estado, y devuelve si hubo
   /// un cambio real (para no difundir un estado idéntico al anterior).
+  ///
+  /// Quien se rindió queda como rendido para siempre: conectarse o
+  /// desconectarse después ya no le cambia el estado.
   bool _cambiarEstadoParticipante(String usuarioId, String nuevoEstado) {
     final indice = _participantes.indexWhere((p) => p.usuarioId == usuarioId);
-    if (indice == -1 || _participantes[indice].estado == nuevoEstado) return false;
+    if (indice == -1) return false;
+    final estadoActual = _participantes[indice].estado;
+    if (estadoActual == nuevoEstado || estadoActual == EstadoParticipante.rendido) return false;
 
     _db.execute(
       'UPDATE participantes_partida SET estado = ? WHERE partida_id = ? AND usuario_id = ?',
       [nuevoEstado, partidaId, usuarioId],
     );
+    _reemplazarEstadoEnMemoria(indice, nuevoEstado);
+    return true;
+  }
+
+  void _reemplazarEstadoEnMemoria(int indice, String nuevoEstado) {
     final anterior = _participantes[indice];
     _participantes[indice] = Participante(
       usuarioId: anterior.usuarioId,
@@ -365,7 +378,6 @@ class SalaDePartida {
       esCreador: anterior.esCreador,
       numerosListos: anterior.numerosListos,
     );
-    return true;
   }
 
   /// Procesa un mensaje entrante de [usuarioId]. Cualquier jugada que no
@@ -401,6 +413,8 @@ class SalaDePartida {
         _tocarCasillaJugador(usuarioId, mensaje);
       case 'pasar_ronda':
         _pasarRondaJugador(usuarioId);
+      case 'rendirse':
+        _rendirseJugador(usuarioId);
       default:
         _enviarError(usuarioId, 'MENSAJE_INVALIDO', 'Tipo de mensaje desconocido: $tipo.');
     }
@@ -435,7 +449,7 @@ class SalaDePartida {
 
   void _seleccionarDadoJugador(String usuarioId, Map<String, dynamic> mensaje) {
     if (!_puedeActuarEstaRonda(usuarioId)) {
-      _enviarError(usuarioId, 'JUGADA_INVALIDA', 'No podes actuar ahora.');
+      _enviarError(usuarioId, 'JUGADA_INVALIDA', 'No puedes actuar ahora.');
       return;
     }
 
@@ -452,7 +466,7 @@ class SalaDePartida {
 
   void _tocarCasillaJugador(String usuarioId, Map<String, dynamic> mensaje) {
     if (!_puedeActuarEstaRonda(usuarioId)) {
-      _enviarError(usuarioId, 'JUGADA_INVALIDA', 'No podes actuar ahora.');
+      _enviarError(usuarioId, 'JUGADA_INVALIDA', 'No puedes actuar ahora.');
       return;
     }
 
@@ -475,7 +489,7 @@ class SalaDePartida {
 
   void _pasarRondaJugador(String usuarioId) {
     if (!_puedeActuarEstaRonda(usuarioId)) {
-      _enviarError(usuarioId, 'JUGADA_INVALIDA', 'No podes actuar ahora.');
+      _enviarError(usuarioId, 'JUGADA_INVALIDA', 'No puedes actuar ahora.');
       return;
     }
 
@@ -483,10 +497,21 @@ class SalaDePartida {
     _aplicarYPersistir(nuevoEstado, _TipoMovimiento.pasarRondaJugador, const {}, usuarioId);
   }
 
+  /// Rendirse se puede en cualquier momento de la partida, toque o no
+  /// tirar o actuar: solo hace falta seguir en juego.
+  void _rendirseJugador(String usuarioId) {
+    if (!_estado.jugadoresActivos.contains(usuarioId)) {
+      _enviarError(usuarioId, 'JUGADA_INVALIDA', 'Ya te rendiste en esta partida.');
+      return;
+    }
+
+    _aplicarYPersistir(aplicarRendirseJugador(_estado, usuarioId), _TipoMovimiento.rendirseJugador, const {}, usuarioId);
+  }
+
   /// Aplica el movimiento en memoria, cierra la ronda si quedó completa
   /// (ver [_posiblementeCerrarRonda]) y persiste todo junto: el movimiento
-  /// en sí, a quién le toca tirar si cambió, y el fin de la partida si
-  /// corresponde — todo en una sola transacción, para que el tablero, el
+  /// en sí, a quién le toca tirar si cambió, quién se rindió y el fin de la
+  /// partida si corresponde — todo en una sola transacción, para que el tablero, el
   /// turno y el estado de la partida nunca queden desincronizados entre sí
   /// ni con lo que ve el cliente tras un reinicio del servidor.
   void _aplicarYPersistir(
@@ -498,6 +523,10 @@ class SalaDePartida {
     final estadoFinal = _posiblementeCerrarRonda(nuevoEstado);
     final cambioJugadorQueTira = estadoFinal.jugadorQueTira != _estado.jugadorQueTira;
     final terminoAhora = estadoFinal.terminada && !_estado.terminada;
+    final recienRendidos = [
+      for (final jugadorId in _estado.jugadoresActivos)
+        if (!estadoFinal.jugadoresActivos.contains(jugadorId)) jugadorId,
+    ];
 
     _db.execute('BEGIN');
     try {
@@ -507,6 +536,12 @@ class SalaDePartida {
       );
       if (cambioJugadorQueTira) {
         _db.execute('UPDATE partidas SET turno_usuario_id = ? WHERE id = ?', [estadoFinal.jugadorQueTira, partidaId]);
+      }
+      for (final jugadorId in recienRendidos) {
+        _db.execute(
+          'UPDATE participantes_partida SET estado = ? WHERE partida_id = ? AND usuario_id = ?',
+          [EstadoParticipante.rendido, partidaId, jugadorId],
+        );
       }
       if (terminoAhora) {
         _db.execute(
@@ -521,6 +556,9 @@ class SalaDePartida {
     }
 
     _estado = estadoFinal;
+    for (final jugadorId in recienRendidos) {
+      _reemplazarEstadoEnMemoria(_participantes.indexWhere((p) => p.usuarioId == jugadorId), EstadoParticipante.rendido);
+    }
     _difundirEstado();
     _reprogramarTimersParaDesconectados();
   }

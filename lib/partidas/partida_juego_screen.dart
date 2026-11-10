@@ -22,6 +22,9 @@ import 'partida_socket.dart';
 ///
 /// El tablero grande es el propio; tocando a otro jugador en la fila de
 /// puntajes se ve el suyo en vivo, sin poder tocarlo.
+///
+/// Quien se rinde deja de jugar y ya no puede ganar, pero puede quedarse
+/// mirando la partida hasta que termine.
 class PartidaJuegoScreen extends StatefulWidget {
   const PartidaJuegoScreen({super.key, required this.socket, required this.usuarioId});
 
@@ -59,6 +62,15 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
     _estadosSub = widget.socket.estados.listen(_alRecibirEstado);
     _erroresSub = widget.socket.errores.listen(_alRecibirError);
     _conexionSub = widget.socket.conexion.listen(_alCambiarConexion);
+
+    // El socket se conecta antes de abrir esta pantalla: si el primer
+    // estado ya había llegado, nadie lo estaba escuchando todavía.
+    final yaRecibido = widget.socket.ultimoEstado;
+    if (yaRecibido != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_estado == null) _alRecibirEstado(yaRecibido);
+      });
+    }
   }
 
   @override
@@ -95,6 +107,10 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
         _avisarPuntuacion(estado, estado.eventosPuntuacion[i]);
       }
     }
+    final anterior = _estado;
+    if (anterior != null) {
+      _avisarRendiciones(anterior, estado);
+    }
     _eventosPuntuacionAvisados = estado.eventosPuntuacion.length;
     setState(() => _estado = estado);
   }
@@ -122,6 +138,25 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
         ),
       ),
     );
+  }
+
+  /// Avisa de cada jugador (que no sea uno mismo) que pasó a estar rendido
+  /// entre [anterior] y [nuevo].
+  void _avisarRendiciones(EstadoPartidaEnVivo anterior, EstadoPartidaEnVivo nuevo) {
+    final yaRendidos = {
+      for (final p in anterior.participantes)
+        if (p.estado == EstadoParticipante.rendido) p.usuarioId,
+    };
+    for (final p in nuevo.participantes) {
+      final seRindioAhora = p.estado == EstadoParticipante.rendido && !yaRendidos.contains(p.usuarioId);
+      if (seRindioAhora && p.usuarioId != widget.usuarioId) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${p.nombreUsuario} se rindió.')));
+      }
+    }
+  }
+
+  bool _estaRendido(EstadoPartidaEnVivo estado, String usuarioId) {
+    return estado.participantes.any((p) => p.usuarioId == usuarioId && p.estado == EstadoParticipante.rendido);
   }
 
   void _alRecibirError(PartidaException error) {
@@ -154,8 +189,9 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
 
     final meTocaTirar = estado.jugadorQueTira == widget.usuarioId;
     final yaActue = estado.jugadoresQueYaActuaron.contains(widget.usuarioId);
-    final puedoTirar = _conectado && meTocaTirar && estado.dados == null;
-    final puedoActuar = _conectado && estado.dados != null && !yaActue;
+    final meRendi = _estaRendido(estado, widget.usuarioId);
+    final puedoTirar = _conectado && !meRendi && meTocaTirar && estado.dados == null;
+    final puedoActuar = _conectado && !meRendi && estado.dados != null && !yaActue;
 
     final observado = _jugadorObservado;
     final mirandoElMio = observado == null || !estado.tableros.containsKey(observado);
@@ -168,6 +204,12 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
       appBar: AppBar(
         title: const Text('Brilliant · Partida'),
         actions: [
+          if (!meRendi)
+            IconButton(
+              icon: const Icon(Icons.flag_outlined),
+              tooltip: 'Rendirse',
+              onPressed: _conectado ? () => _confirmarRendirse(context) : null,
+            ),
           IconButton(
             icon: const Icon(Icons.info_outline),
             tooltip: 'Reglas de las zonas',
@@ -218,11 +260,12 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 4),
                       child: _PuntajeJugador(
-                        nombre: participante.usuarioId == widget.usuarioId ? 'Vos' : participante.nombreUsuario,
+                        nombre: participante.usuarioId == widget.usuarioId ? 'Tú' : participante.nombreUsuario,
                         puntaje: estado.tableros[participante.usuarioId]!.puntaje,
                         tiraLosDados: participante.usuarioId == estado.jugadorQueTira,
                         yaActuo: estado.jugadoresQueYaActuaron.contains(participante.usuarioId),
                         desconectado: participante.estado == EstadoParticipante.desconectado,
+                        rendido: participante.estado == EstadoParticipante.rendido,
                         seleccionado: mirandoElMio
                             ? participante.usuarioId == widget.usuarioId
                             : participante.usuarioId == observado,
@@ -237,8 +280,8 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
             const SizedBox(height: 8),
             Text(
               mirandoElMio
-                  ? _instruccion(estado, juego)
-                  : 'Estás viendo el tablero de ${_nombreDe(estado, observado)}. Tocá "Vos" para volver al tuyo.',
+                  ? (meRendi ? 'Te rendiste. Puedes seguir mirando la partida.' : _instruccion(estado, juego))
+                  : 'Estás viendo el tablero de ${_nombreDe(estado, observado)}. Toca "Tú" para volver al tuyo.',
               textAlign: TextAlign.center,
               style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
             ),
@@ -322,21 +365,21 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
     if (estado.jugadoresQueYaActuaron.contains(widget.usuarioId)) {
       final faltan = [
         for (final p in estado.participantes)
-          if (estado.tableros.containsKey(p.usuarioId) && !estado.jugadoresQueYaActuaron.contains(p.usuarioId))
+          if (p.estado != EstadoParticipante.rendido && !estado.jugadoresQueYaActuaron.contains(p.usuarioId))
             p.nombreUsuario,
       ];
       return 'Ya jugaste esta ronda. Esperando a ${faltan.join(', ')}.';
     }
     if (juego.puedeVolverATirar) {
-      return 'No tenés ninguna jugada con ${dados[0]} y ${dados[1]}. Pasá la ronda.';
+      return 'No tienes ninguna jugada con ${dados[0]} y ${dados[1]}. Pasa la ronda.';
     }
     if (juego.ancla != null) {
-      return 'Tocá una casilla iluminada para colocar el ${juego.numeroAColocar}.';
+      return 'Toca una casilla iluminada para colocar el ${juego.numeroAColocar}.';
     }
     if (juego.numeroAnclaElegido != null) {
-      return 'Tocá una casilla con el ${juego.numeroAnclaElegido} para usarla de ancla.';
+      return 'Toca una casilla con el ${juego.numeroAnclaElegido} para usarla de ancla.';
     }
-    return 'Dados: ${dados[0]} y ${dados[1]}. Tocá uno de los dados para elegir con cuál número anclar.';
+    return 'Dados: ${dados[0]} y ${dados[1]}. Toca uno de los dados para elegir con cuál número anclar.';
   }
 
   Future<void> _confirmarPasarRonda(BuildContext context, JuegoEstado juego) async {
@@ -348,8 +391,8 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
           title: const Text('Pasar ronda'),
           content: Text(
             hayJugada
-                ? 'Tenés una jugada disponible. Si pasás, no colocás ningún número con estos dados.'
-                : 'No colocás ningún número con estos dados.',
+                ? 'Tienes una jugada disponible. Si pasas, no colocas ningún número con estos dados.'
+                : 'No colocas ningún número con estos dados.',
           ),
           actions: [
             TextButton(
@@ -367,6 +410,37 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
 
     if (confirmar == true) {
       widget.socket.pasarRonda();
+    }
+  }
+
+  Future<void> _confirmarRendirse(BuildContext context) async {
+    final colorScheme = Theme.of(context).colorScheme;
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Rendirte de la partida'),
+          content: const Text(
+            'Dejas de jugar y ya no puedes ganar esta partida. Tu tablero y tus puntos quedan a la vista '
+            'y puedes seguir mirando. No se puede deshacer.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Seguir jugando'),
+            ),
+            TextButton(
+              style: TextButton.styleFrom(foregroundColor: colorScheme.error),
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Rendirme'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmar == true) {
+      widget.socket.rendirse();
     }
   }
 
@@ -393,7 +467,8 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
 }
 
 /// El puntaje de un jugador en la fila de arriba del tablero. Muestra
-/// además si le toca tirar, si ya jugó esta ronda y si está desconectado;
+/// además si le toca tirar, si ya jugó esta ronda, si está desconectado y
+/// si se rindió;
 /// al tocarlo se pasa a ver su tablero.
 class _PuntajeJugador extends StatelessWidget {
   const _PuntajeJugador({
@@ -402,6 +477,7 @@ class _PuntajeJugador extends StatelessWidget {
     required this.tiraLosDados,
     required this.yaActuo,
     required this.desconectado,
+    required this.rendido,
     required this.seleccionado,
     required this.onTap,
   });
@@ -411,6 +487,7 @@ class _PuntajeJugador extends StatelessWidget {
   final bool tiraLosDados;
   final bool yaActuo;
   final bool desconectado;
+  final bool rendido;
   final bool seleccionado;
   final VoidCallback onTap;
 
@@ -451,6 +528,10 @@ class _PuntajeJugador extends StatelessWidget {
                     message: 'Ya jugó esta ronda',
                     child: Icon(Icons.check_circle, size: 18, color: colorTexto),
                   ),
+                ],
+                if (rendido) ...[
+                  const SizedBox(width: 8),
+                  Tooltip(message: 'Se rindió', child: Icon(Icons.flag, size: 18, color: colorTexto)),
                 ],
                 if (desconectado) ...[
                   const SizedBox(width: 8),

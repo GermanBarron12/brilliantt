@@ -56,6 +56,7 @@ Map<String, dynamic> _estadoJson({
   int puntajeBeto = 3,
   bool terminada = false,
   List<String> ganadores = const [],
+  String estadoAna = 'conectado',
   String estadoBeto = 'conectado',
   List<Map<String, dynamic>> eventosPuntuacion = const [],
 }) {
@@ -72,7 +73,7 @@ Map<String, dynamic> _estadoJson({
         'usuarioId': 'u1',
         'nombreUsuario': 'ana',
         'ordenTurno': 0,
-        'estado': 'conectado',
+        'estado': estadoAna,
         'esCreador': true,
         'numerosListos': true,
       },
@@ -143,7 +144,7 @@ void main() {
     testWidgets('muestra el puntaje de cada jugador, la ronda y la meta de puntos', (tester) async {
       await abrir(tester, _estadoJson(puntajeAna: 7, puntajeBeto: 3));
 
-      expect(find.text('Vos'), findsOneWidget);
+      expect(find.text('Tú'), findsOneWidget);
       expect(find.text('7 pts'), findsOneWidget);
       expect(find.text('beto'), findsOneWidget);
       expect(find.text('3 pts'), findsOneWidget);
@@ -202,7 +203,7 @@ void main() {
 
       await tester.tap(find.widgetWithText(OutlinedButton, 'Pasar ronda'));
       await tester.pumpAndSettle();
-      expect(find.textContaining('Tenés una jugada disponible'), findsOneWidget);
+      expect(find.textContaining('Tienes una jugada disponible'), findsOneWidget);
       expect(canal.enviados, isEmpty);
 
       await tester.tap(find.widgetWithText(TextButton, 'Pasar ronda'));
@@ -234,7 +235,7 @@ void main() {
       await _tocarCasilla(tester, 0, 2);
       expect(canal.enviados, isEmpty);
 
-      await tester.tap(find.text('Vos'));
+      await tester.tap(find.text('Tú'));
       await tester.pump();
       expect(tester.widget<TableroWidget>(find.byType(TableroWidget)).valores[0][2], 1);
     });
@@ -284,6 +285,54 @@ void main() {
 
       expect(find.textContaining('beto se desconectó'), findsOneWidget);
       expect(find.byTooltip('Desconectado'), findsOneWidget);
+    });
+
+    testWidgets('rendirse pide confirmacion y, al confirmar, lo manda al servidor', (tester) async {
+      await abrir(tester, _estadoJson());
+
+      await tester.tap(find.byTooltip('Rendirse'));
+      await tester.pumpAndSettle();
+      expect(find.text('Rendirte de la partida'), findsOneWidget);
+      expect(canal.enviados, isEmpty);
+
+      await tester.tap(find.widgetWithText(TextButton, 'Rendirme'));
+      await tester.pumpAndSettle();
+
+      expect(canal.enviados, [{'tipo': 'rendirse'}]);
+    });
+
+    testWidgets('si en la confirmacion elijo seguir jugando, no se manda nada', (tester) async {
+      await abrir(tester, _estadoJson());
+
+      await tester.tap(find.byTooltip('Rendirse'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(TextButton, 'Seguir jugando'));
+      await tester.pumpAndSettle();
+
+      expect(canal.enviados, isEmpty);
+    });
+
+    testWidgets('ya rendido, sigo mirando pero no puedo jugar ni rendirme de nuevo', (tester) async {
+      await abrir(tester, _estadoJson(jugadorQueTira: 'u2', dados: [1, 3], estadoAna: 'rendido'));
+
+      expect(find.text('Te rendiste. Puedes seguir mirando la partida.'), findsOneWidget);
+      expect(find.byTooltip('Rendirse'), findsNothing);
+      expect(find.byTooltip('Se rindió'), findsOneWidget);
+      expect(tester.widget<OutlinedButton>(find.widgetWithText(OutlinedButton, 'Pasar ronda')).onPressed, isNull);
+
+      await tester.tap(find.byType(DadoWidget).first);
+      await tester.pump();
+      expect(canal.enviados, isEmpty);
+    });
+
+    testWidgets('avisa cuando otro jugador se rinde', (tester) async {
+      await abrir(tester, _estadoJson());
+
+      canal.simularEstado(_estadoJson(estadoBeto: 'rendido'));
+      await tester.pump();
+
+      expect(find.text('beto se rindió.'), findsOneWidget);
+      expect(find.byTooltip('Se rindió'), findsOneWidget);
     });
 
     testWidgets('cuando la partida termina, pasa a la pantalla de resultado', (tester) async {

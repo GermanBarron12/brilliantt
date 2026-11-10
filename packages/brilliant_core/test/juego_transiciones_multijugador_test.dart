@@ -378,4 +378,173 @@ void main() {
       expect(resultado.ganadores.length, 2);
     });
   });
+
+  group('aplicarRendirseJugador', () {
+    PartidaMultijugadorEstado estadoDeTres({String jugadorQueTira = 'ana', List<int>? dadosActuales}) {
+      return _estadoParaCierre(
+        tablerosPorJugador: {'ana': _tableroVacio(), 'beto': _tableroVacio(), 'caro': _tableroVacio()},
+        ordenJugadores: ['ana', 'beto', 'caro'],
+        jugadorQueTira: jugadorQueTira,
+        dadosActuales: dadosActuales,
+      );
+    }
+
+    test('quien se rinde deja de estar activo, pero conserva su tablero y sus puntos', () {
+      final estado = _estadoParaCierre(
+        tablerosPorJugador: {
+          'ana': _tableroVacio(),
+          'beto': _tableroConZonaAzulSuperiorCompleta(),
+          'caro': _tableroVacio(),
+        },
+        ordenJugadores: ['ana', 'beto', 'caro'],
+        historialPuntuacion: [
+          EventoPuntuacionMultijugador(
+            ronda: 1,
+            jugadorId: 'beto',
+            colorZona: ColorZona.azul,
+            zonaId: _zonaAzulSuperiorId,
+            nombreZona: 'Zona azul',
+            escalon: 0,
+            puntosObtenidos: 7,
+          ),
+        ],
+      );
+
+      final resultado = aplicarRendirseJugador(estado, 'beto');
+
+      expect(resultado.jugadoresActivos, ['ana', 'caro']);
+      expect(resultado.ordenJugadores, ['ana', 'beto', 'caro']);
+      expect(resultado.puntajeDe('beto'), 7);
+      expect(resultado.tableros['beto']!.valorEn(const PosicionCasilla(0, 2)), 1);
+      expect(resultado.terminada, isFalse);
+    });
+
+    test('la meta de puntos no cambia aunque queden menos jugadores', () {
+      final estado = estadoDeTres();
+      final resultado = aplicarRendirseJugador(estado, 'caro');
+
+      expect(resultado.puntajeMinimoParaTerminar, estado.puntajeMinimoParaTerminar);
+    });
+
+    test('si le tocaba tirar y todavia no tiro, le toca al siguiente activo', () {
+      final resultado = aplicarRendirseJugador(estadoDeTres(jugadorQueTira: 'beto'), 'beto');
+
+      expect(resultado.jugadorQueTira, 'caro');
+      expect(resultado.numeroRonda, 1);
+    });
+
+    test('si se rinde el ultimo del orden cuando le tocaba tirar, vuelve al primero', () {
+      final resultado = aplicarRendirseJugador(estadoDeTres(jugadorQueTira: 'caro'), 'caro');
+
+      expect(resultado.jugadorQueTira, 'ana');
+    });
+
+    test('si se rinde quien ya tiro, la ronda sigue y despues tira el siguiente activo', () {
+      var estado = estadoDeTres(jugadorQueTira: 'ana', dadosActuales: [2, 5]);
+      estado = aplicarRendirseJugador(estado, 'ana');
+      expect(estado.dadosActuales, [2, 5]);
+      expect(rondaCompleta(estado), isFalse);
+
+      estado = aplicarPasarRondaJugador(estado, 'beto');
+      estado = aplicarPasarRondaJugador(estado, 'caro');
+      expect(rondaCompleta(estado), isTrue);
+
+      final cerrada = aplicarCierreDeRonda(estado);
+      expect(cerrada.jugadorQueTira, 'beto');
+      expect(cerrada.numeroRonda, 2);
+    });
+
+    test('si la ronda solo esperaba por quien se rinde, queda completa', () {
+      var estado = estadoDeTres(dadosActuales: [2, 5]);
+      estado = aplicarPasarRondaJugador(estado, 'ana');
+      estado = aplicarPasarRondaJugador(estado, 'beto');
+      expect(rondaCompleta(estado), isFalse);
+
+      estado = aplicarRendirseJugador(estado, 'caro');
+
+      expect(rondaCompleta(estado), isTrue);
+    });
+
+    test('al cerrar una ronda, quien se rindio nunca vuelve a tirar', () {
+      var estado = estadoDeTres(jugadorQueTira: 'ana', dadosActuales: [2, 5]);
+      estado = aplicarRendirseJugador(estado, 'beto');
+      estado = aplicarPasarRondaJugador(estado, 'ana');
+      estado = aplicarPasarRondaJugador(estado, 'caro');
+
+      expect(aplicarCierreDeRonda(estado).jugadorQueTira, 'caro');
+    });
+
+    test('quien se rindio no suma puntos nuevos aunque su tablero tenga una zona completa', () {
+      var estado = _estadoParaCierre(
+        tablerosPorJugador: {
+          'ana': _tableroVacio(),
+          'beto': _tableroConZonaAzulSuperiorCompleta(),
+          'caro': _tableroVacio(),
+        },
+        ordenJugadores: ['ana', 'beto', 'caro'],
+        dadosActuales: [1, 1],
+      );
+      estado = aplicarRendirseJugador(estado, 'beto');
+      estado = aplicarPasarRondaJugador(estado, 'ana');
+      estado = aplicarPasarRondaJugador(estado, 'caro');
+
+      final cerrada = aplicarCierreDeRonda(estado);
+
+      expect(cerrada.puntajeDe('beto'), 0);
+      expect(cerrada.escalonesGastadosPorZona, isEmpty);
+    });
+
+    test('si queda un solo jugador activo, la partida termina y gana el', () {
+      final estado = _estadoParaCierre(
+        tablerosPorJugador: {'ana': _tableroVacio(), 'beto': _tableroVacio()},
+        ordenJugadores: ['ana', 'beto'],
+      );
+
+      final resultado = aplicarRendirseJugador(estado, 'ana');
+
+      expect(resultado.terminada, isTrue);
+      expect(resultado.ganadores, ['beto']);
+    });
+
+    test('quien se rindio no gana aunque tenga mas puntos que el que queda', () {
+      final estado = _estadoParaCierre(
+        tablerosPorJugador: {'ana': _tableroVacio(), 'beto': _tableroVacio()},
+        ordenJugadores: ['ana', 'beto'],
+        historialPuntuacion: [
+          EventoPuntuacionMultijugador(
+            ronda: 1,
+            jugadorId: 'ana',
+            colorZona: ColorZona.azul,
+            zonaId: _zonaAzulSuperiorId,
+            nombreZona: 'Zona azul',
+            escalon: 0,
+            puntosObtenidos: 7,
+          ),
+        ],
+      );
+
+      final resultado = aplicarRendirseJugador(estado, 'ana');
+
+      expect(resultado.ganadores, ['beto']);
+    });
+
+    test('si el ultimo rival se rinde con la ronda completa, se reparten los puntos y no se abre otra ronda', () {
+      var estado = _estadoParaCierre(
+        tablerosPorJugador: {'ana': _tableroConZonaAzulSuperiorCompleta(), 'beto': _tableroVacio()},
+        ordenJugadores: ['ana', 'beto'],
+        numeroRonda: 3,
+        dadosActuales: [1, 1],
+      );
+      estado = aplicarPasarRondaJugador(estado, 'ana');
+      estado = aplicarRendirseJugador(estado, 'beto');
+      expect(rondaCompleta(estado), isTrue);
+
+      final cerrada = aplicarCierreDeRonda(estado);
+
+      expect(cerrada.terminada, isTrue);
+      expect(cerrada.numeroRonda, 3);
+      expect(cerrada.puntajeDe('ana'), 7);
+      expect(cerrada.ganadores, ['ana']);
+    });
+  });
 }

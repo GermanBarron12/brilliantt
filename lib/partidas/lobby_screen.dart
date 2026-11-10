@@ -203,7 +203,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
                       if (!_alcanzanLosJugadores) ...[
                         const SizedBox(height: 8),
                         Text(
-                          'Necesitás al menos 2 jugadores para empezar.',
+                          'Necesitas al menos 2 jugadores para empezar.',
                           textAlign: TextAlign.center,
                           style: textTheme.bodySmall,
                         ),

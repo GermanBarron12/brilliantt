@@ -133,7 +133,7 @@ class _NumerosInicialesPartidaScreenState extends State<NumerosInicialesPartidaS
       builder: (context) {
         final textTheme = Theme.of(context).textTheme;
         return AlertDialog(
-          title: const Text('Elegí un número'),
+          title: const Text('Elige un número'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -180,7 +180,7 @@ class _NumerosInicialesPartidaScreenState extends State<NumerosInicialesPartidaS
                 Text(
                   _yaConfirme
                       ? 'Tus números ya están confirmados. La partida arranca cuando terminen todos.'
-                      : 'Tocá cada casilla con ⭐ y elegí su número (1-6, sin repetir). '
+                      : 'Toca cada casilla con ⭐ y elige su número (1-6, sin repetir). '
                           'Los demás no ven tus números hasta que arranque la partida.',
                   textAlign: TextAlign.center,
                   style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),

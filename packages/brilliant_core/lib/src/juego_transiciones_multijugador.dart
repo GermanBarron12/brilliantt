@@ -141,6 +141,29 @@ PartidaMultijugadorEstado aplicarPasarRondaJugador(PartidaMultijugadorEstado est
   );
 }
 
+/// [jugadorId] se rinde: deja de estar entre los jugadores activos, así que
+/// ya no tira, no actúa, no suma puntos nuevos y no puede ganar. Su tablero
+/// y los puntos que ya tenía quedan como estaban, a la vista de todos.
+///
+/// Si queda un solo jugador activo, la partida termina ahí y gana él. Si le
+/// tocaba tirar y todavía no había tirado, el privilegio pasa al siguiente
+/// activo. Si la ronda estaba esperando solo por él, queda completa: quien
+/// llama cierra la ronda después, igual que tras cualquier otra jugada.
+PartidaMultijugadorEstado aplicarRendirseJugador(PartidaMultijugadorEstado estado, String jugadorId) {
+  final activos = [
+    for (final id in estado.jugadoresActivos)
+      if (id != jugadorId) id,
+  ];
+  final conRendido = estado.copyWith(jugadoresActivos: activos);
+  if (activos.length <= 1) {
+    return conRendido.copyWith(terminada: true);
+  }
+  if (estado.jugadorQueTira == jugadorId && estado.dadosActuales == null) {
+    return conRendido.copyWith(jugadorQueTira: _siguienteActivo(conRendido));
+  }
+  return conRendido;
+}
+
 /// true si todos los jugadores activos ya colocaron un número o pasaron
 /// con los dados actuales: la ronda está lista para cerrarse.
 bool rondaCompleta(PartidaMultijugadorEstado estado) {
@@ -194,8 +217,12 @@ PartidaMultijugadorEstado aplicarCierreDeRonda(PartidaMultijugadorEstado estado)
     escalonesGastadosPorZona: escalones,
   );
 
-  final terminada = estadoConPuntaje.jugadoresActivos
-      .any((j) => estadoConPuntaje.puntajeDe(j) >= estadoConPuntaje.puntajeMinimoParaTerminar);
+  // Puede llegar ya terminada si el último rival se rindió con la ronda
+  // completa: se reparten igual los puntos de esta ronda, pero no se abre
+  // otra.
+  final terminada = estadoConPuntaje.terminada ||
+      estadoConPuntaje.jugadoresActivos
+          .any((j) => estadoConPuntaje.puntajeDe(j) >= estadoConPuntaje.puntajeMinimoParaTerminar);
   if (terminada) {
     return estadoConPuntaje.copyWith(terminada: true);
   }

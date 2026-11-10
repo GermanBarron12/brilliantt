@@ -203,6 +203,14 @@ void main() {
       expect(canalFalso.enviados, [{'tipo': 'pasar_ronda'}]);
     });
 
+    test('rendirse manda el mensaje correcto', () {
+      socket.conectar('ABC123', 'token-1');
+
+      socket.rendirse();
+
+      expect(canalFalso.enviados, [{'tipo': 'rendirse'}]);
+    });
+
     test('cerrar cierra el canal subyacente', () async {
       socket.conectar('ABC123', 'token-1');
 

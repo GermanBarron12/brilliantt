@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
 import 'estado_partida_en_vivo.dart';
+import 'partida.dart';
 
 /// El resultado de una partida multijugador terminada: quién ganó (puede
-/// ser más de uno si empataron en puntos) y cómo quedaron todos.
+/// ser más de uno si empataron en puntos) y cómo quedaron todos. Quienes se
+/// rindieron van al final de la tabla, tengan los puntos que tengan.
 class PartidaFinScreen extends StatelessWidget {
   const PartidaFinScreen({super.key, required this.estado, required this.usuarioId});
 
@@ -18,7 +20,7 @@ class PartidaFinScreen extends StatelessWidget {
   String get _titulo {
     final gane = estado.ganadores.contains(usuarioId);
     if (gane && estado.ganadores.length == 1) return '¡Ganaste!';
-    if (gane) return '¡Empate! Compartís la victoria';
+    if (gane) return '¡Empate! Compartes la victoria';
     final nombres = estado.ganadores.map(_nombreDe).toList();
     if (nombres.length == 1) return 'Ganó ${nombres.single}';
     return 'Empate entre ${nombres.join(' y ')}';
@@ -28,9 +30,12 @@ class PartidaFinScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
-    final ranking = [...estado.participantes]..sort(
-        (a, b) => estado.tableros[b.usuarioId]!.puntaje.compareTo(estado.tableros[a.usuarioId]!.puntaje),
-      );
+    final ranking = [...estado.participantes]..sort((a, b) {
+        final aRendido = a.estado == EstadoParticipante.rendido;
+        final bRendido = b.estado == EstadoParticipante.rendido;
+        if (aRendido != bRendido) return aRendido ? 1 : -1;
+        return estado.tableros[b.usuarioId]!.puntaje.compareTo(estado.tableros[a.usuarioId]!.puntaje);
+      });
 
     return Scaffold(
       appBar: AppBar(title: const Text('Fin de la partida'), automaticallyImplyLeading: false),
@@ -64,9 +69,10 @@ class PartidaFinScreen extends StatelessWidget {
                           ),
                           title: Text(
                             participante.usuarioId == usuarioId
-                                ? '${participante.nombreUsuario} (vos)'
+                                ? '${participante.nombreUsuario} (tú)'
                                 : participante.nombreUsuario,
                           ),
+                          subtitle: participante.estado == EstadoParticipante.rendido ? const Text('Se rindió') : null,
                           trailing: Text(
                             '${estado.tableros[participante.usuarioId]!.puntaje} pts',
                             style: textTheme.titleMedium,
