@@ -4,7 +4,7 @@ import 'crear_partida_screen.dart';
 import 'partida_api.dart';
 import 'unirse_partida_screen.dart';
 
-/// Punto de entrada al modo multijugador: desde acá se crea una partida
+/// Punto de entrada al modo multijugador: desde aquí se crea una partida
 /// nueva o se entra con el código que mandó otro jugador.
 class PartidaMenuScreen extends StatelessWidget {
   const PartidaMenuScreen({super.key, required this.api, required this.token, required this.usuarioId});
@@ -33,7 +33,7 @@ class PartidaMenuScreen extends StatelessWidget {
                 Text('Jugar con amigos', textAlign: TextAlign.center, style: textTheme.headlineSmall),
                 const SizedBox(height: 8),
                 Text(
-                  'Creá una partida nueva o unite con el código que te compartieron.',
+                  'Crea una partida nueva o únete con el código que te compartieron.',
                   textAlign: TextAlign.center,
                   style: textTheme.bodyMedium,
                 ),

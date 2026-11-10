@@ -69,23 +69,6 @@ void main() {
       expect(pantalla.configuracionNivel, configuracionNivel1);
     });
 
-    testWidgets('sin onJugarMultijugador, no muestra el boton de jugar con amigos', (tester) async {
-      await tester.pumpWidget(const MaterialApp(home: SeleccionNivelScreen()));
-
-      expect(find.byIcon(Icons.people_outline), findsNothing);
-    });
-
-    testWidgets('con onJugarMultijugador, el boton lo llama al tocarlo', (tester) async {
-      var llamado = false;
-      await tester.pumpWidget(
-        MaterialApp(home: SeleccionNivelScreen(onJugarMultijugador: () => llamado = true)),
-      );
-
-      await tester.tap(find.byIcon(Icons.people_outline));
-
-      expect(llamado, isTrue);
-    });
-
     testWidgets('no genera overflow en un ancho reducido', (tester) async {
       tester.view.physicalSize = const Size(320, 800);
       tester.view.devicePixelRatio = 1.0;

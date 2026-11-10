@@ -102,12 +102,20 @@ class ParDadosWidget extends StatelessWidget {
   final bool seleccionHabilitada;
   final void Function(int valor)? onSeleccionar;
 
+  /// Identifica la tirada: el giro se anima solo cuando este valor cambia.
+  /// Si no se pasa, se usa la identidad de la lista [dados], que alcanza
+  /// cuando la lista solo se reemplaza al tirar (modo de un jugador). En
+  /// multijugador cada mensaje del servidor trae una lista nueva aunque la
+  /// tirada sea la misma, así que ahí se pasa el número de ronda.
+  final Object? claveDeTirada;
+
   const ParDadosWidget({
     super.key,
     required this.dados,
     required this.numeroSeleccionado,
     required this.seleccionHabilitada,
     required this.onSeleccionar,
+    this.claveDeTirada,
   });
 
   @override
@@ -137,11 +145,10 @@ class ParDadosWidget extends StatelessWidget {
           child: ScaleTransition(scale: animation, child: child),
         );
       },
-      // La key cambia con cada tirada nueva (identityHashCode de la lista
-      // de dados), así AnimatedSwitcher dispara el giro al tirar, pero no
-      // al solo seleccionar un dado o un ancla.
+      // La key cambia con cada tirada nueva, así AnimatedSwitcher dispara
+      // el giro al tirar, pero no al solo seleccionar un dado o un ancla.
       child: DadoWidget(
-        key: ValueKey('${identityHashCode(dados)}-$indice'),
+        key: ValueKey('${claveDeTirada ?? identityHashCode(dados)}-$indice'),
         valor: valor,
         seleccionado: numeroSeleccionado == valor,
         habilitado: seleccionHabilitada,

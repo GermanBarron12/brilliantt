@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../inicio_screen.dart';
 import '../partidas/partida_api.dart';
 import '../partidas/partida_menu_screen.dart';
-import '../seleccion_nivel_screen.dart';
 import 'api_config.dart';
 import 'auth_api.dart';
 import 'auth_cubit.dart';
@@ -58,7 +58,8 @@ class _AuthGateBody extends StatelessWidget {
           case AuthNoAutenticado():
             return LoginScreen(repository: repository);
           case AuthAutenticado(usuario: final usuario):
-            return SeleccionNivelScreen(
+            return InicioScreen(
+              nombreUsuario: usuario.nombreUsuario,
               onCerrarSesion: () => context.read<AuthCubit>().cerrarSesion(),
               onEliminarCuenta: (password) async {
                 try {

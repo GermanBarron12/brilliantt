@@ -8,6 +8,7 @@ import 'package:http/testing.dart';
 import 'package:brilliant/auth/auth_api.dart';
 import 'package:brilliant/auth/auth_gate.dart';
 import 'package:brilliant/auth/auth_repository.dart';
+import 'package:brilliant/inicio_screen.dart';
 
 import 'fake_token_store.dart';
 
@@ -40,9 +41,9 @@ void main() {
       await tester.pumpWidget(MaterialApp(home: AuthGate(repository: repo)));
       await tester.pumpAndSettle();
 
-      expect(find.text('Brilliant · Elegir nivel'), findsOneWidget);
-      expect(find.byIcon(Icons.logout), findsOneWidget);
-      expect(find.byIcon(Icons.delete_outline), findsOneWidget);
+      expect(find.byType(InicioScreen), findsOneWidget);
+      expect(find.text('Solitario'), findsOneWidget);
+      expect(find.text('Multijugador'), findsOneWidget);
     });
 
     testWidgets('cerrar sesion vuelve a mostrar el login', (tester) async {
@@ -64,7 +65,9 @@ void main() {
       await tester.pumpWidget(MaterialApp(home: AuthGate(repository: repo)));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(Icons.logout));
+      await tester.tap(find.byTooltip('Opciones de la cuenta'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cerrar sesión'));
       await tester.pumpAndSettle();
 
       expect(find.widgetWithText(ElevatedButton, 'Iniciar sesión'), findsOneWidget);
@@ -87,7 +90,7 @@ void main() {
       await tester.pumpWidget(MaterialApp(home: AuthGate(repository: repo)));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(Icons.people_outline));
+      await tester.tap(find.text('Multijugador'));
       await tester.pumpAndSettle();
 
       expect(find.text('Jugar con amigos'), findsWidgets);
@@ -126,7 +129,7 @@ void main() {
       await tester.tap(find.widgetWithText(ElevatedButton, 'Crear cuenta'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Brilliant · Elegir nivel'), findsOneWidget);
+      expect(find.byType(InicioScreen), findsOneWidget);
       expect(await store.leer(), 'token-nuevo');
     });
 
@@ -149,7 +152,9 @@ void main() {
       await tester.pumpWidget(MaterialApp(home: AuthGate(repository: repo)));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(Icons.delete_outline));
+      await tester.tap(find.byTooltip('Opciones de la cuenta'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Eliminar cuenta'));
       await tester.pumpAndSettle();
 
       await tester.enterText(find.widgetWithText(TextField, 'Contraseña'), 'contrasena123');
@@ -182,7 +187,9 @@ void main() {
       await tester.pumpWidget(MaterialApp(home: AuthGate(repository: repo)));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(Icons.delete_outline));
+      await tester.tap(find.byTooltip('Opciones de la cuenta'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Eliminar cuenta'));
       await tester.pumpAndSettle();
 
       await tester.enterText(find.widgetWithText(TextField, 'Contraseña'), 'incorrecta');
@@ -190,7 +197,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Usuario o contrasena incorrectos.'), findsOneWidget);
-      expect(find.text('Brilliant · Elegir nivel'), findsOneWidget);
+      expect(find.byType(InicioScreen), findsOneWidget);
       expect(await store.leer(), 'token-vigente');
     });
   });

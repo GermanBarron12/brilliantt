@@ -9,6 +9,7 @@ import 'package:brilliant/dado_widget.dart';
 import 'package:brilliant/partidas/partida_fin_screen.dart';
 import 'package:brilliant/partidas/partida_juego_screen.dart';
 import 'package:brilliant/partidas/partida_socket.dart';
+import 'package:brilliant/partidas/tabla_puntos_zonas.dart';
 import 'package:brilliant/tablero_widget.dart';
 
 class _CanalFalso implements CanalPartida {
@@ -48,6 +49,7 @@ Map<String, dynamic> _eventoJson({required String jugadorId, int puntos = 7}) =>
 /// armado con sus números iniciales.
 Map<String, dynamic> _estadoJson({
   String jugadorQueTira = 'u1',
+  int numeroRonda = 2,
   List<int>? dados,
   List<String> yaActuaron = const [],
   int? numeroAnclaElegido,
@@ -61,7 +63,7 @@ Map<String, dynamic> _estadoJson({
   List<Map<String, dynamic>> eventosPuntuacion = const [],
 }) {
   return {
-    'numeroRonda': 2,
+    'numeroRonda': numeroRonda,
     'jugadorQueTira': jugadorQueTira,
     'dados': dados,
     'nivelId': 1,
@@ -149,6 +151,90 @@ void main() {
       expect(find.text('beto'), findsOneWidget);
       expect(find.text('3 pts'), findsOneWidget);
       expect(find.text('Ronda 2 · Se juega a 26 puntos'), findsOneWidget);
+    });
+
+    testWidgets('los jugadores se ordenan de mayor a menor puntaje, con su puesto', (tester) async {
+      await abrir(tester, _estadoJson(puntajeAna: 3, puntajeBeto: 7));
+
+      expect(tester.getTopLeft(find.text('beto')).dx, lessThan(tester.getTopLeft(find.text('Tú')).dx));
+      expect(find.byTooltip('Puesto 1'), findsOneWidget);
+      expect(find.byTooltip('Puesto 2'), findsOneWidget);
+    });
+
+    testWidgets('los jugadores empatados comparten puesto y quien se rindio no tiene', (tester) async {
+      await abrir(tester, _estadoJson(puntajeAna: 5, puntajeBeto: 5));
+      expect(find.byTooltip('Puesto 1'), findsNWidgets(2));
+
+      canal.simularEstado(_estadoJson(puntajeAna: 5, puntajeBeto: 9, estadoBeto: 'rendido'));
+      await tester.pump();
+
+      expect(find.byTooltip('Puesto 1'), findsOneWidget);
+      expect(find.byTooltip('Puesto 2'), findsNothing);
+      expect(tester.getTopLeft(find.text('Tú')).dx, lessThan(tester.getTopLeft(find.text('beto')).dx));
+    });
+
+    testWidgets('la hoja de puntos muestra lo que obtuvo quien se esta mirando', (tester) async {
+      await abrir(tester, _estadoJson(eventosPuntuacion: [_eventoJson(jugadorId: 'u2')]));
+
+      List<String> jugadoresDeLasHojas() {
+        return tester.widgetList<TablaPuntosZonas>(find.byType(TablaPuntosZonas)).map((t) => t.jugadorId).toList();
+      }
+
+      // En un ancho normal hay una hoja a cada lado del tablero.
+      expect(jugadoresDeLasHojas(), ['u1', 'u1']);
+      final zonasMostradas =
+          tester.widgetList<TablaPuntosZonas>(find.byType(TablaPuntosZonas)).expand((t) => t.zonas).length;
+      expect(zonasMostradas, zonasNivel1.length);
+
+      await tester.tap(find.text('beto'));
+      await tester.pump();
+
+      expect(jugadoresDeLasHojas(), ['u2', 'u2']);
+    });
+
+    testWidgets('en un ancho reducido la hoja de puntos va en una sola fila bajo el tablero', (tester) async {
+      tester.view.physicalSize = const Size(360, 760);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await abrir(tester, _estadoJson());
+
+      final hoja = tester.widget<TablaPuntosZonas>(find.byType(TablaPuntosZonas));
+      expect(hoja.vertical, isFalse);
+      expect(hoja.zonas.length, zonasNivel1.length);
+      expect(
+        tester.getTopLeft(find.byType(TablaPuntosZonas)).dy,
+        greaterThan(tester.getBottomLeft(find.byType(TableroWidget)).dy),
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('los dados no vuelven a animarse al jugar dentro de la misma ronda', (tester) async {
+      await abrir(tester, _estadoJson(dados: [1, 3]));
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.byType(DadoWidget), findsNWidgets(2));
+
+      // Elegir un dado trae un estado nuevo con los mismos dados: mientras
+      // dura un giro hay dados de más en pantalla (el viejo y el nuevo).
+      canal.simularEstado(_estadoJson(dados: [1, 3], numeroAnclaElegido: 1));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.byType(DadoWidget), findsNWidgets(2));
+    });
+
+    testWidgets('los dados si se animan cuando llega la tirada de otra ronda', (tester) async {
+      await abrir(tester, _estadoJson(dados: [1, 3]));
+      await tester.pump(const Duration(milliseconds: 500));
+
+      canal.simularEstado(_estadoJson(dados: [1, 3], numeroRonda: 3));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.byType(DadoWidget), findsNWidgets(4));
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.byType(DadoWidget), findsNWidgets(2));
     });
 
     testWidgets('cuando me toca tirar, puedo tirar los dados', (tester) async {

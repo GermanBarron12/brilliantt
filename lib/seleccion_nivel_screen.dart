@@ -8,59 +8,18 @@ import 'tablero_widget.dart';
 /// Pantalla para elegir uno de los 4 niveles oficiales de Brilliant. Cada
 /// miniatura se dibuja con el mismo [TableroWidget] que usa la partida
 /// real, a partir de su [ConfiguracionNivel]: ninguna matriz ni lista de
-/// estrellas está transcrita a mano acá, solo se lee de
+/// estrellas está transcrita a mano aquí, solo se lee de
 /// [configuracionesOficiales].
 ///
-/// Es la pantalla a la que se llega directo al iniciar sesion (no hay
-/// pantalla intermedia de "Jugar"). [onCerrarSesion] y [onEliminarCuenta]
-/// son opcionales: si se proveen, se agregan los botones correspondientes
-/// en la barra superior. Al dejarlos afuera (como hacen las pruebas de esta
-/// pantalla y las que arman un nivel directamente) la pantalla no depende
-/// de nada de `lib/auth/`.
+/// Se llega desde el modo solitario de la pantalla de inicio.
 class SeleccionNivelScreen extends StatelessWidget {
-  const SeleccionNivelScreen({
-    super.key,
-    this.onCerrarSesion,
-    this.onEliminarCuenta,
-    this.onJugarMultijugador,
-  });
-
-  final VoidCallback? onCerrarSesion;
-
-  /// Pide la password actual y elimina la cuenta. Devuelve un mensaje de
-  /// error para mostrar si falla, o `null` si la cuenta se elimino bien.
-  final Future<String?> Function(String password)? onEliminarCuenta;
-
-  /// Abre el flujo de jugar con amigos (crear partida o unirse con un
-  /// codigo). Opcional, como los demas callbacks: sin el, el boton no
-  /// aparece y la pantalla no depende de nada de `lib/partidas/`.
-  final VoidCallback? onJugarMultijugador;
+  const SeleccionNivelScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Brilliant · Elegir nivel'),
-        actions: [
-          if (onJugarMultijugador != null)
-            IconButton(
-              icon: const Icon(Icons.people_outline),
-              tooltip: 'Jugar con amigos',
-              onPressed: onJugarMultijugador,
-            ),
-          if (onEliminarCuenta != null)
-            IconButton(
-              icon: const Icon(Icons.delete_outline),
-              tooltip: 'Eliminar cuenta',
-              onPressed: () => _mostrarDialogoEliminarCuenta(context, onEliminarCuenta!),
-            ),
-          if (onCerrarSesion != null)
-            IconButton(
-              icon: const Icon(Icons.logout),
-              tooltip: 'Cerrar sesión',
-              onPressed: onCerrarSesion,
-            ),
-        ],
+        title: const Text('Elegir nivel'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -143,101 +102,6 @@ class _TarjetaNivel extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-void _mostrarDialogoEliminarCuenta(
-  BuildContext context,
-  Future<String?> Function(String password) onEliminarCuenta,
-) {
-  showDialog<void>(
-    context: context,
-    builder: (_) => _DialogoEliminarCuenta(onEliminarCuenta: onEliminarCuenta),
-  );
-}
-
-/// Pide la password actual antes de confirmar el borrado: sirve tanto de
-/// reautenticacion (lo exige el backend) como de confirmacion explicita de
-/// una accion irreversible.
-class _DialogoEliminarCuenta extends StatefulWidget {
-  const _DialogoEliminarCuenta({required this.onEliminarCuenta});
-
-  final Future<String?> Function(String password) onEliminarCuenta;
-
-  @override
-  State<_DialogoEliminarCuenta> createState() => _DialogoEliminarCuentaState();
-}
-
-class _DialogoEliminarCuentaState extends State<_DialogoEliminarCuenta> {
-  final _passwordController = TextEditingController();
-  String? _error;
-  bool _enviando = false;
-
-  @override
-  void dispose() {
-    _passwordController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _confirmar() async {
-    final password = _passwordController.text;
-    if (password.isEmpty) {
-      setState(() => _error = 'Ingresa tu contraseña');
-      return;
-    }
-    setState(() {
-      _enviando = true;
-      _error = null;
-    });
-    final error = await widget.onEliminarCuenta(password);
-    if (!mounted) return;
-    if (error == null) {
-      Navigator.of(context).pop();
-      return;
-    }
-    setState(() {
-      _enviando = false;
-      _error = error;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Eliminar cuenta'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Esta accion es permanente y no se puede deshacer. Confirma tu contraseña para continuar.'),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _passwordController,
-            obscureText: true,
-            autofocus: true,
-            decoration: InputDecoration(labelText: 'Contraseña', errorText: _error),
-            onSubmitted: (_) => _enviando ? null : _confirmar(),
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: _enviando ? null : () => Navigator.of(context).pop(),
-          child: const Text('Cancelar'),
-        ),
-        FilledButton(
-          style: FilledButton.styleFrom(backgroundColor: Colors.red),
-          onPressed: _enviando ? null : _confirmar,
-          child: _enviando
-              ? const SizedBox(
-                  height: 16,
-                  width: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                )
-              : const Text('Eliminar'),
-        ),
-      ],
     );
   }
 }

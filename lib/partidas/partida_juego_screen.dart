@@ -12,6 +12,7 @@ import 'partida.dart';
 import 'partida_exception.dart';
 import 'partida_fin_screen.dart';
 import 'partida_socket.dart';
+import 'tabla_puntos_zonas.dart';
 
 /// La partida multijugador en curso. Cada jugador tiene su propio tablero y
 /// su propio puntaje; los dados se tiran una vez por ronda (le toca a uno
@@ -21,7 +22,9 @@ import 'partida_socket.dart';
 /// `SalaDePartida`).
 ///
 /// El tablero grande es el propio; tocando a otro jugador en la fila de
-/// puntajes se ve el suyo en vivo, sin poder tocarlo.
+/// puntajes (ordenada de mayor a menor puntaje) se ve el suyo en vivo, sin
+/// poder tocarlo. Junto al tablero va la hoja de puntos por zona de quien
+/// se está mirando (ver [TablaPuntosZonas]).
 ///
 /// Quien se rinde deja de jugar y ya no puede ganar, pero puede quedarse
 /// mirando la partida hasta que termine.
@@ -200,6 +203,43 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
+    final jugadorDeLaHoja = mirandoElMio ? widget.usuarioId : observado;
+    final costados = zonasPorCostado(nivel);
+    Widget hojaDePuntos(List<ZonaTablero> zonas, {required bool vertical}) {
+      return TablaPuntosZonas(
+        zonas: zonas,
+        nivel: nivel,
+        eventos: estado.eventosPuntuacion,
+        jugadorId: jugadorDeLaHoja,
+        vertical: vertical,
+      );
+    }
+
+    final tablero = Center(
+      child: AspectRatio(
+        aspectRatio: 1,
+        child: Card(
+          clipBehavior: Clip.antiAlias,
+          child: Padding(
+            padding: const EdgeInsets.all(4),
+            child: TableroWidget(
+              layout: nivel.layout,
+              valores: tableroVisible.tablero,
+              estrellas: nivel.casillasEstrella.toSet(),
+              resaltadas: !(puedoActuar && mirandoElMio)
+                  ? const {}
+                  : juego.ancla != null
+                      ? juego.casillasValidas.toSet()
+                      : juego.casillasAnclaPosibles,
+              repetidas: const {},
+              seleccionada: tableroVisible.ancla,
+              onTap: (posicion) => _tocarCasilla(juego, puedoActuar && mirandoElMio, posicion),
+            ),
+          ),
+        ),
+      ),
+    );
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Brilliant · Partida'),
@@ -256,10 +296,11 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  for (final participante in estado.participantes)
+                  for (final participante in _porPuntaje(estado))
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 4),
                       child: _PuntajeJugador(
+                        posicion: _posicionDe(estado, participante),
                         nombre: participante.usuarioId == widget.usuarioId ? 'Tú' : participante.nombreUsuario,
                         puntaje: estado.tableros[participante.usuarioId]!.puntaje,
                         tiraLosDados: participante.usuarioId == estado.jugadorQueTira,
@@ -288,35 +329,37 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
             const SizedBox(height: 12),
             ParDadosWidget(
               dados: estado.dados,
+              claveDeTirada: estado.numeroRonda,
               numeroSeleccionado: miTablero.numeroAnclaElegido,
               seleccionHabilitada: puedoActuar && mirandoElMio && miTablero.ancla == null,
               onSeleccionar: puedoActuar && mirandoElMio ? widget.socket.seleccionarDado : null,
             ),
             const SizedBox(height: 12),
             Expanded(
-              child: Center(
-                child: AspectRatio(
-                  aspectRatio: 1,
-                  child: Card(
-                    clipBehavior: Clip.antiAlias,
-                    child: Padding(
-                      padding: const EdgeInsets.all(4),
-                      child: TableroWidget(
-                        layout: nivel.layout,
-                        valores: tableroVisible.tablero,
-                        estrellas: nivel.casillasEstrella.toSet(),
-                        resaltadas: !(puedoActuar && mirandoElMio)
-                            ? const {}
-                            : juego.ancla != null
-                                ? juego.casillasValidas.toSet()
-                                : juego.casillasAnclaPosibles,
-                        repetidas: const {},
-                        seleccionada: tableroVisible.ancla,
-                        onTap: (posicion) => _tocarCasilla(juego, puedoActuar && mirandoElMio, posicion),
-                      ),
-                    ),
-                  ),
-                ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  // Con ancho de sobra, la hoja de puntos va a los costados
+                  // del tablero, cada zona del lado en que está; si no, en
+                  // una fila debajo.
+                  if (constraints.maxWidth >= 640) {
+                    return Row(
+                      children: [
+                        hojaDePuntos(costados.izquierda, vertical: true),
+                        const SizedBox(width: 8),
+                        Expanded(child: tablero),
+                        const SizedBox(width: 8),
+                        hojaDePuntos(costados.derecha, vertical: true),
+                      ],
+                    );
+                  }
+                  return Column(
+                    children: [
+                      Expanded(child: tablero),
+                      const SizedBox(height: 8),
+                      hojaDePuntos([...costados.izquierda, ...costados.derecha], vertical: false),
+                    ],
+                  );
+                },
               ),
             ),
             const SizedBox(height: 16),
@@ -339,6 +382,31 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
         ),
       ),
     );
+  }
+
+  /// Los participantes de mayor a menor puntaje, con quienes se rindieron
+  /// al final. A igual puntaje se mantiene el orden de turno.
+  List<Participante> _porPuntaje(EstadoPartidaEnVivo estado) {
+    int clave(Participante p) => p.estado == EstadoParticipante.rendido ? -1 : estado.tableros[p.usuarioId]!.puntaje;
+    final orden = [...estado.participantes];
+    // List.sort no garantiza conservar el orden entre iguales: se desempata
+    // a mano por orden de turno.
+    orden.sort((a, b) {
+      final porPuntos = clave(b).compareTo(clave(a));
+      return porPuntos != 0 ? porPuntos : a.ordenTurno.compareTo(b.ordenTurno);
+    });
+    return orden;
+  }
+
+  /// El puesto de [participante] (1 es quien va ganando; los empatados
+  /// comparten puesto), o null si se rindió.
+  int? _posicionDe(EstadoPartidaEnVivo estado, Participante participante) {
+    if (participante.estado == EstadoParticipante.rendido) return null;
+    final puntaje = estado.tableros[participante.usuarioId]!.puntaje;
+    return 1 +
+        estado.participantes
+            .where((p) => p.estado != EstadoParticipante.rendido && estado.tableros[p.usuarioId]!.puntaje > puntaje)
+            .length;
   }
 
   void _tocarCasilla(JuegoEstado juego, bool puedoActuar, PosicionCasilla posicion) {
@@ -472,6 +540,7 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
 /// al tocarlo se pasa a ver su tablero.
 class _PuntajeJugador extends StatelessWidget {
   const _PuntajeJugador({
+    required this.posicion,
     required this.nombre,
     required this.puntaje,
     required this.tiraLosDados,
@@ -482,6 +551,7 @@ class _PuntajeJugador extends StatelessWidget {
     required this.onTap,
   });
 
+  final int? posicion;
   final String nombre;
   final int puntaje;
   final bool tiraLosDados;
@@ -510,6 +580,13 @@ class _PuntajeJugador extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
+                if (posicion != null) ...[
+                  Tooltip(
+                    message: 'Puesto $posicion',
+                    child: Text('$posicion.º', style: textTheme.titleMedium?.copyWith(color: colorTexto)),
+                  ),
+                  const SizedBox(width: 8),
+                ],
                 Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
