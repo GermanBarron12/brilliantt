@@ -89,20 +89,30 @@ Middleware _parseJsonBody({int limiteBytes = 10 * 1024}) {
   };
 }
 
-Map<String, String> _corsHeaders(String origin) => {
-      'access-control-allow-origin': origin,
-      'access-control-allow-methods': 'GET,POST,DELETE,OPTIONS',
-      'access-control-allow-headers': 'Content-Type, Authorization',
-    };
+/// Cabeceras de CORS para una solicitud que llega desde [origenDeLaSolicitud].
+/// Solo se autoriza si es exactamente uno de los [permitidos]; si no, no se
+/// agrega ninguna cabecera y el navegador bloquea la respuesta por su cuenta.
+Map<String, String> _corsHeaders(List<String> permitidos, String? origenDeLaSolicitud) {
+  if (origenDeLaSolicitud == null || !permitidos.contains(origenDeLaSolicitud)) return const {};
+  return {
+    'access-control-allow-origin': origenDeLaSolicitud,
+    'access-control-allow-methods': 'GET,POST,DELETE,OPTIONS',
+    'access-control-allow-headers': 'Content-Type, Authorization',
+    // La respuesta depende de quien pregunta: sin esto, una cache podria
+    // servirle a un origen la respuesta autorizada para otro.
+    'vary': 'Origin',
+  };
+}
 
-Middleware _cors(String origin) {
+Middleware _cors(List<String> permitidos) {
   return (Handler innerHandler) {
     return (Request request) async {
+      final cabeceras = _corsHeaders(permitidos, request.headers['origin']);
       if (request.method == 'OPTIONS') {
-        return Response(204, headers: _corsHeaders(origin));
+        return Response(204, headers: cabeceras);
       }
       final response = await innerHandler(request);
-      return response.change(headers: _corsHeaders(origin));
+      return response.change(headers: cabeceras);
     };
   };
 }
@@ -125,12 +135,18 @@ Handler crearApp(
 
   final appHandler = Cascade().add(rutasAuth.call).add(rutasPartidas.call).add(_handler404).handler;
 
-  var pipeline = Pipeline().addMiddleware(_manejoDeErrores()).addMiddleware(_cabecerasSeguridad(config.isProduction)).addMiddleware(_parseJsonBody());
-
-  final corsOrigin = config.corsOrigin;
-  if (corsOrigin != null) {
-    pipeline = pipeline.addMiddleware(_cors(corsOrigin));
+  // CORS va por fuera del manejo de errores: asi tambien las respuestas de
+  // error (401, 409...) llevan sus cabeceras. Si fuera por dentro, un error
+  // lanzado por una ruta pasaria de largo y el navegador, al no ver la
+  // autorizacion, le ocultaria a la app el mensaje real.
+  var pipeline = const Pipeline();
+  if (config.corsOrigins.isNotEmpty) {
+    pipeline = pipeline.addMiddleware(_cors(config.corsOrigins));
   }
 
-  return pipeline.addHandler(appHandler);
+  return pipeline
+      .addMiddleware(_manejoDeErrores())
+      .addMiddleware(_cabecerasSeguridad(config.isProduction))
+      .addMiddleware(_parseJsonBody())
+      .addHandler(appHandler);
 }

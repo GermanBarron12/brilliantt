@@ -15,7 +15,7 @@ class Config {
     required this.loginRateLimit,
     required this.registerRateLimit,
     required this.isProduction,
-    required this.corsOrigin,
+    required this.corsOrigins,
   });
 
   final int port;
@@ -25,13 +25,23 @@ class Config {
   final RateLimitConfig registerRateLimit;
   final bool isProduction;
 
-  /// Origen permitido para CORS (por ejemplo `http://localhost:5173`, donde
-  /// corre `flutter run -d chrome` en desarrollo). `null` por defecto:
-  /// ningun navegador puede llamar a la API salvo que se configure
-  /// explicitamente. Los clientes nativos (Android/iOS) no pasan por CORS,
-  /// asi que esto solo hace falta para probar o servir la app en un
-  /// navegador.
-  final String? corsOrigin;
+  /// Origenes permitidos para CORS (por ejemplo `http://localhost:8765`,
+  /// donde corre la app web en desarrollo). Se leen de `CORS_ORIGIN`,
+  /// separados por coma si son varios: hace falta mas de uno, por ejemplo,
+  /// para jugar en red local, donde quien hospeda entra por `localhost` y
+  /// los demas por la IP de esa maquina. Vacio por defecto: ningun navegador
+  /// puede llamar a la API salvo que se configure explicitamente. Los
+  /// clientes nativos (Android/iOS) no pasan por CORS, asi que esto solo
+  /// hace falta para probar o servir la app en un navegador.
+  final List<String> corsOrigins;
+
+  static List<String> _origenesDeEntorno(String? valor) {
+    if (valor == null) return const [];
+    return [
+      for (final origen in valor.split(','))
+        if (origen.trim().isNotEmpty) origen.trim(),
+    ];
+  }
 
   static int _numeroDeEntorno(Map<String, String> env, String nombre, int porDefecto) {
     final valor = env[nombre];
@@ -60,7 +70,7 @@ class Config {
         maxAttempts: _numeroDeEntorno(env, 'REGISTER_RATE_LIMIT_MAX_ATTEMPTS', 5),
       ),
       isProduction: isProduction,
-      corsOrigin: env['CORS_ORIGIN'],
+      corsOrigins: _origenesDeEntorno(env['CORS_ORIGIN']),
     );
   }
 }
