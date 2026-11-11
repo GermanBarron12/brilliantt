@@ -47,13 +47,3 @@ app.*.map.json
 
 # Resultados de `flutter test --coverage`
 coverage/
-
-# Servidor de autenticacion (Dart): datos locales de SQLite y variables de
-# entorno con secretos. pubspec.lock SI se versiona (es un paquete de
-# aplicacion, no una libreria reutilizable).
-/server/data/
-/server/.env
-/server/*.sqlite
-/server/*.sqlite-journal
-/server/*.sqlite-wal
-/server/*.sqlite-shm

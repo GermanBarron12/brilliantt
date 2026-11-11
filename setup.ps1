@@ -1,10 +1,8 @@
 $ErrorActionPreference = "Stop"
 $raiz = $PSScriptRoot
 
-Push-Location (Join-Path $raiz "server")
-dart pub get
-Pop-Location
-
+# El servidor vive en un repo aparte (brilliant-server): este script ya no
+# instala sus dependencias. Clonarlo y correr `dart pub get` ahi.
 Push-Location $raiz
 flutter pub get
 Pop-Location

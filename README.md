@@ -7,35 +7,40 @@ aviso visual al completar una zona.
 
 ## Cómo correr el proyecto
 
-Requiere Flutter SDK instalado (incluye el Dart SDK que tambien usa el
-servidor) y la libreria nativa de SQLite disponible en el sistema (ver
-[`server/README.md`](server/README.md)).
+El servidor (autenticación, salas y partidas multijugador) vive en un repo
+aparte: [brilliant-server](https://github.com/GermanBarron12/brilliant-server).
+Este repo es solo el cliente Flutter; se comunica con el servidor por HTTP y
+WebSocket (nunca por import directo), así que cada uno se clona y se corre
+por separado.
 
-Instalar dependencias (una vez):
+Requiere Flutter SDK instalado (incluye el Dart SDK que tambien usa el
+servidor) y, para correr el servidor, la libreria nativa de SQLite
+disponible en el sistema (ver el README de `brilliant-server`).
+
+Instalar dependencias del cliente (una vez):
 
 ```powershell
-.\setup.ps1
+flutter pub get
 ```
 
-cmd: `powershell -ExecutionPolicy Bypass -File setup.ps1`
-
-Terminal 1 (servidor):
+Terminal 1 (servidor, clonado aparte desde
+[brilliant-server](https://github.com/GermanBarron12/brilliant-server)):
 
 ```powershell
-cd server
 dart run bin/migrate.dart
 $env:CORS_ORIGIN="http://localhost:5173"; dart run bin/server.dart
 ```
 
 cmd: `set CORS_ORIGIN=http://localhost:5173&& dart run bin/server.dart` (sin espacio antes de `&&`)
 
-Terminal 2 (app):
+Terminal 2 (app, en este repo):
 
 ```powershell
 flutter run -d chrome --web-port=5173
 ```
 
-Más info del servidor: [`server/README.md`](server/README.md).
+Más info del servidor: ver el README de
+[brilliant-server](https://github.com/GermanBarron12/brilliant-server).
 
 ## Cómo correr las pruebas
 
