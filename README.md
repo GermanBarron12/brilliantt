@@ -17,6 +17,40 @@ Requiere Flutter SDK instalado (incluye el Dart SDK que tambien usa el
 servidor) y, para correr el servidor, la libreria nativa de SQLite
 disponible en el sistema (ver el README de `brilliant-server`).
 
+### Forma rápida: un comando por terminal
+
+Cada repo tiene un script que hace todo (instalar dependencias, migrar la
+base si corresponde, y levantar el server o la app):
+
+Terminal 1 (servidor, clonado aparte):
+
+```bat
+git clone https://github.com/GermanBarron12/brilliant-server.git
+cd brilliant-server
+iniciar_servidor.bat
+```
+
+(en PowerShell: `.\iniciar_servidor.ps1`)
+
+Terminal 2 (app, en este repo):
+
+```bat
+iniciar_cliente.bat
+```
+
+(en PowerShell: `.\iniciar_cliente.ps1`)
+
+Por defecto `iniciar_cliente` abre la app en Chrome apuntando a
+`http://localhost:3000`, que sirve si corrés el cliente en la misma
+máquina que el servidor. Para correrlo desde otro dispositivo (celular,
+otra compu), ver la sección "Jugar desde otro dispositivo" más abajo —
+ahí se usan estos mismos scripts, pasándoles la IP del servidor.
+
+Más info del servidor: ver el README de
+[brilliant-server](https://github.com/GermanBarron12/brilliant-server).
+
+### Forma manual (paso a paso)
+
 Instalar dependencias del cliente (una vez):
 
 ```powershell
@@ -52,9 +86,6 @@ Terminal 2 (app, en este repo):
 ```powershell
 flutter run -d chrome --web-port=5173
 ```
-
-Más info del servidor: ver el README de
-[brilliant-server](https://github.com/GermanBarron12/brilliant-server).
 
 ### Jugar desde otro dispositivo (celular, otra compu, o con otra persona)
 
@@ -97,17 +128,22 @@ solo funciona si el cliente corre en la misma máquina que el servidor).
      flutter devices
      ```
 
-   - Correr la app pasando la IP del paso 1 en `API_BASE_URL`:
+   - Correr la app con el script, pasando la IP del paso 1 y el id del
+     dispositivo:
 
-     ```powershell
-     flutter run -d <id-del-dispositivo> --dart-define=API_BASE_URL=http://192.168.1.50:3000
+     ```bat
+     iniciar_cliente.bat http://192.168.1.50:3000 RFCW11KC04X
      ```
 
-     (reemplazar `<id-del-dispositivo>` por el id real que mostró
-     `flutter devices`, y la IP por la que corresponda; un cliente web
-     corrido desde otra máquina sigue viéndose a sí mismo como
-     `http://localhost:5173`, así que no hace falta tocar `CORS_ORIGIN` del
-     servidor).
+     (en PowerShell: `.\iniciar_cliente.ps1 -ApiBaseUrl "http://192.168.1.50:3000" -Dispositivo "RFCW11KC04X"`)
+
+     Reemplazar `192.168.1.50` por la IP real del paso 1, y
+     `RFCW11KC04X` por el id real que mostró `flutter devices`. Si el
+     cliente adicional es otro navegador (otra compu) en vez de un
+     celular, se puede omitir el id del dispositivo (usa Chrome por
+     defecto); un cliente web corrido desde otra máquina sigue viéndose a
+     sí mismo como `http://localhost:5173`, así que no hace falta tocar
+     `CORS_ORIGIN` del servidor.
 
 4. Si un dispositivo (celular u otra compu) no logra conectarse, lo más
    común es que el Firewall de Windows esté bloqueando conexiones
