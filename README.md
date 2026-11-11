@@ -23,15 +23,29 @@ Instalar dependencias del cliente (una vez):
 flutter pub get
 ```
 
-Terminal 1 (servidor, clonado aparte desde
-[brilliant-server](https://github.com/GermanBarron12/brilliant-server)):
+Terminal 1 (servidor, clonado aparte):
+
+PowerShell:
 
 ```powershell
+git clone https://github.com/GermanBarron12/brilliant-server.git
+cd brilliant-server
+dart pub get
 dart run bin/migrate.dart
 $env:CORS_ORIGIN="http://localhost:5173"; dart run bin/server.dart
 ```
 
-cmd: `set CORS_ORIGIN=http://localhost:5173&& dart run bin/server.dart` (sin espacio antes de `&&`)
+cmd:
+
+```bat
+git clone https://github.com/GermanBarron12/brilliant-server.git
+cd brilliant-server
+dart pub get
+dart run bin/migrate.dart
+set CORS_ORIGIN=http://localhost:5173&& dart run bin/server.dart
+```
+
+(sin espacio antes de `&&`)
 
 Terminal 2 (app, en este repo):
 
@@ -86,8 +100,26 @@ flutter test
   `lib/notificacion_puntuacion.dart`: detectan cuándo una colocación
   completa una zona y muestran un aviso temporal con los puntos obtenidos y
   el nombre de la zona.
-- `lib/jugador.dart`: identificador del jugador que juega el turno, hoy fijo
-  a un único jugador local; pensado para reemplazarse sin tocar el resto de
-  la lógica el día que se agregue el multijugador.
+- `lib/jugador.dart`: identificador del jugador que juega el turno en el
+  modo de un jugador (`lib/juego_cubit.dart`, `lib/juego_screen.dart`).
 
+### Autenticación
+
+- `lib/auth/`: registro, login, identidad y token de sesión contra el
+  servidor (`auth_api.dart`, `auth_cubit.dart`, `auth_repository.dart`,
+  `login_screen.dart`, `register_screen.dart`). `auth_gate.dart` decide si
+  se muestra el login o la app según haya sesión guardada.
+
+### Partida multijugador
+
+- `lib/partidas/`: lobby (crear/unirse a una partida por código de
+  invitación), elección de números iniciales por partida y la pantalla de
+  juego en sí (`partida_juego_screen.dart`), cada jugador con su propio
+  tablero y puntaje, pero los dados tirados una sola vez por ronda y
+  compartidos.
+- `lib/partidas/partida_socket.dart`: conexión WebSocket con el servidor;
+  el estado de la partida (`estado_partida_en_vivo.dart`) llega siempre
+  desde ahí, nunca se calcula en el cliente.
+- `lib/inicio_screen.dart`: pantalla de inicio con los dos modos (un
+  jugador / multijugador).
 
