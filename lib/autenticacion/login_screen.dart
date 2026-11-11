@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'auth_cubit.dart';
-import 'auth_exception.dart';
-import 'auth_repository.dart';
+import 'autenticacion_excepcion.dart';
+import 'autenticacion_repositorio.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {

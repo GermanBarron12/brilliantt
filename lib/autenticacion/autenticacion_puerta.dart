@@ -4,12 +4,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../inicio_screen.dart';
 import '../partidas/partida_api.dart';
 import '../partidas/partida_menu_screen.dart';
-import 'api_config.dart';
-import 'auth_api.dart';
+import 'api_configuracion.dart';
+import 'autenticacion_api.dart';
 import 'auth_cubit.dart';
-import 'auth_exception.dart';
-import 'auth_repository.dart';
-import 'auth_state.dart';
+import 'autenticacion_excepcion.dart';
+import 'autenticacion_repositorio.dart';
+import 'autenticacion_estado.dart';
 import 'login_screen.dart';
 import 'usuario.dart';
 

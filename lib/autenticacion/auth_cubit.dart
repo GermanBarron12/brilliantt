@@ -1,7 +1,7 @@
 import 'package:bloc/bloc.dart';
 
-import 'auth_repository.dart';
-import 'auth_state.dart';
+import 'autenticacion_repositorio.dart';
+import 'autenticacion_estado.dart';
 import 'usuario.dart';
 
 /// Estado de sesion a nivel de toda la app: autenticado o no. El registro

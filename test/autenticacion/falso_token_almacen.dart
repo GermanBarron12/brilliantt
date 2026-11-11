@@ -1,4 +1,4 @@
-import 'package:brilliant/auth/token_storage.dart';
+import 'package:brilliant/autenticacion/token_almacenamiento.dart';
 
 /// `TokenStore` en memoria para pruebas: evita depender del plugin de
 /// almacenamiento seguro, que no esta disponible en el entorno de pruebas.

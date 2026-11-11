@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import 'auth/api_config.dart';
-import 'auth/auth_gate.dart';
-import 'theme/brilliant_theme.dart';
+import 'autenticacion/api_configuracion.dart';
+import 'autenticacion/autenticacion_puerta.dart';
+import 'tema/brilliant_tema.dart';
 
 void main() {
   runApp(const BrilliantApp());

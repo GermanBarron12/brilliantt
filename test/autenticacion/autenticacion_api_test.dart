@@ -4,8 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
-import 'package:brilliant/auth/auth_api.dart';
-import 'package:brilliant/auth/auth_exception.dart';
+import 'package:brilliant/autenticacion/autenticacion_api.dart';
+import 'package:brilliant/autenticacion/autenticacion_excepcion.dart';
 
 void main() {
   group('AuthApi', () {

@@ -4,10 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
-import 'package:brilliant/auth/auth_api.dart';
-import 'package:brilliant/auth/auth_repository.dart';
+import 'package:brilliant/autenticacion/autenticacion_api.dart';
+import 'package:brilliant/autenticacion/autenticacion_repositorio.dart';
 
-import 'fake_token_store.dart';
+import 'falso_token_almacen.dart';
 
 Map<String, dynamic> _usuarioJson(String id, String nombreUsuario) =>
     {'id': id, 'nombreUsuario': nombreUsuario, 'createdAt': '2026-01-01T00:00:00.000Z'};

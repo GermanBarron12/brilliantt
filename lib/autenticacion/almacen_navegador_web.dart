@@ -1,4 +1,4 @@
-// Versión web (ver el import condicional en `token_storage.dart`): acceso
+// Versión web (ver el import condicional en `token_almacenamiento.dart`): acceso
 // directo al `localStorage` del navegador, sin cifrar.
 import 'dart:js_interop';
 

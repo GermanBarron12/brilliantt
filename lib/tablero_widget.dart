@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'tablero_layout.dart';
-import 'theme/brilliant_theme.dart';
+import 'tema/brilliant_tema.dart';
 
 /// Dibuja la grilla del tablero. Cada casilla se puede tocar y se ve
 /// distinta según tenga número, sea estrella, esté seleccionada, esté

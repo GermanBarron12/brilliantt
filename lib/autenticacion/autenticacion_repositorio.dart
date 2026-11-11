@@ -1,6 +1,6 @@
-import 'auth_api.dart';
-import 'auth_exception.dart';
-import 'token_storage.dart';
+import 'autenticacion_api.dart';
+import 'autenticacion_excepcion.dart';
+import 'token_almacenamiento.dart';
 import 'usuario.dart';
 
 /// Combina las llamadas HTTP (`AuthApi`) con la persistencia del token de

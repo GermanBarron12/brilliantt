@@ -31,8 +31,8 @@ PowerShell:
 git clone https://github.com/GermanBarron12/brilliant-server.git
 cd brilliant-server
 dart pub get
-dart run bin/migrate.dart
-$env:CORS_ORIGIN="http://localhost:5173"; dart run bin/server.dart
+dart run bin/migrar.dart
+$env:CORS_ORIGIN="http://localhost:5173"; dart run bin/servidor.dart
 ```
 
 cmd:
@@ -41,8 +41,8 @@ cmd:
 git clone https://github.com/GermanBarron12/brilliant-server.git
 cd brilliant-server
 dart pub get
-dart run bin/migrate.dart
-set CORS_ORIGIN=http://localhost:5173&& dart run bin/server.dart
+dart run bin/migrar.dart
+set CORS_ORIGIN=http://localhost:5173&& dart run bin/servidor.dart
 ```
 
 (sin espacio antes de `&&`)
@@ -105,10 +105,11 @@ flutter test
 
 ### Autenticación
 
-- `lib/auth/`: registro, login, identidad y token de sesión contra el
-  servidor (`auth_api.dart`, `auth_cubit.dart`, `auth_repository.dart`,
-  `login_screen.dart`, `register_screen.dart`). `auth_gate.dart` decide si
-  se muestra el login o la app según haya sesión guardada.
+- `lib/autenticacion/`: registro, login, identidad y token de sesión contra
+  el servidor (`autenticacion_api.dart`, `auth_cubit.dart`,
+  `autenticacion_repositorio.dart`, `login_screen.dart`,
+  `register_screen.dart`). `autenticacion_puerta.dart` decide si se muestra
+  el login o la app según haya sesión guardada.
 
 ### Partida multijugador
 

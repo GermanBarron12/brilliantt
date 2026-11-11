@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
-import 'auth_exception.dart';
+import 'autenticacion_excepcion.dart';
 import 'usuario.dart';
 
 class ResultadoConSesion {
