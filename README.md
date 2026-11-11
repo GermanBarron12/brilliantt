@@ -56,6 +56,74 @@ flutter run -d chrome --web-port=5173
 Más info del servidor: ver el README de
 [brilliant-server](https://github.com/GermanBarron12/brilliant-server).
 
+### Jugar desde otro dispositivo (celular, otra compu, o con otra persona)
+
+El multijugador funciona con un solo servidor y varios clientes conectados
+(cada uno en su propio dispositivo). Todos los clientes tienen que apuntar
+al servidor con la IP de la máquina donde corre, no con `localhost` (eso
+solo funciona si el cliente corre en la misma máquina que el servidor).
+
+1. Fijate la IP local de la máquina que va a correr el servidor:
+
+   PowerShell:
+
+   ```powershell
+   ipconfig
+   ```
+
+   cmd:
+
+   ```bat
+   ipconfig
+   ```
+
+   Buscá la `Dirección IPv4` del adaptador conectado a la red (Wi-Fi o
+   Ethernet), por ejemplo `192.168.1.50`.
+
+2. Prendé el servidor con esa misma máquina (Terminal 1, como en la sección
+   anterior). El cliente que corre en esta misma máquina (por ejemplo
+   `flutter run -d chrome --web-port=5173`) puede seguir usando `localhost`
+   sin cambios.
+
+3. Para cada cliente adicional (celular, otra compu, o la máquina de otra
+   persona), siempre que esté conectado a la **misma red local** (mismo
+   Wi-Fi/router) que el servidor:
+
+   - Clonar este repo y hacer `flutter pub get`.
+   - Conectar el dispositivo (o abrirlo en su propio navegador/escritorio) y
+     ver su id con:
+
+     ```powershell
+     flutter devices
+     ```
+
+   - Correr la app pasando la IP del paso 1 en `API_BASE_URL`:
+
+     ```powershell
+     flutter run -d <id-del-dispositivo> --dart-define=API_BASE_URL=http://192.168.1.50:3000
+     ```
+
+     (reemplazar `<id-del-dispositivo>` por el id real que mostró
+     `flutter devices`, y la IP por la que corresponda; un cliente web
+     corrido desde otra máquina sigue viéndose a sí mismo como
+     `http://localhost:5173`, así que no hace falta tocar `CORS_ORIGIN` del
+     servidor).
+
+4. Si un dispositivo (celular u otra compu) no logra conectarse, lo más
+   común es que el Firewall de Windows esté bloqueando conexiones
+   entrantes al puerto 3000 en la máquina del servidor: hay que agregar una
+   regla de entrada para `dart.exe` o para ese puerto.
+
+5. Para jugar juntos: una vez que todos tengan la app abierta y con sesión
+   iniciada, alguien crea una partida desde el lobby (que genera un código
+   de invitación) y comparte ese código con los demás, que se unen con
+   "Unirse a partida".
+
+Si la otra persona está en una red distinta (por ejemplo, conectándose
+desde su casa), la IP local no alcanza: hay que exponer el servidor a
+internet (port forwarding en el router, o un túnel como ngrok) y, si algún
+cliente es web, agregar su origen a `CORS_ORIGIN`.
+
 ## Cómo correr las pruebas
 
 ```
