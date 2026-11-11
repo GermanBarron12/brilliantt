@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:brilliant_server/app.dart';
 import 'package:brilliant_server/config.dart';
 import 'package:brilliant_server/db/connection.dart';
+import 'package:crypto/crypto.dart' as crypto;
 import 'package:http/http.dart' as http;
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:sqlite3/sqlite3.dart';
@@ -144,13 +145,26 @@ void main() {
 
   group('POST /auth/login', () {
     test('200 con credenciales correctas', () async {
-      await registrar('login_user', 'password-1234');
+      final tokenRegistro = await registrar('login_user', 'password-1234');
+      // Sin cerrar la sesion del autologin, este login chocaria con el
+      // limite de una sola sesion activa por usuario (ver el grupo de abajo).
+      await post('/auth/logout', {}, token: tokenRegistro);
+
       final respuesta = await post('/auth/login', {'nombreUsuario': 'login_user', 'password': 'password-1234'});
       final cuerpo = jsonDecode(respuesta.body) as Map<String, dynamic>;
 
       expect(respuesta.statusCode, 200);
       expect(cuerpo['token'], isA<String>());
       expect((cuerpo['user'] as Map)['nombreUsuario'], 'login_user');
+    });
+
+    test('409 si ya hay una sesion activa de ese usuario en otro dispositivo', () async {
+      await registrar('yaactiva', 'password-1234'); // el autologin ya deja una sesion activa.
+      final respuesta = await post('/auth/login', {'nombreUsuario': 'yaactiva', 'password': 'password-1234'});
+      final cuerpo = jsonDecode(respuesta.body) as Map<String, dynamic>;
+
+      expect(respuesta.statusCode, 409);
+      expect((cuerpo['error'] as Map)['code'], 'SESION_YA_ACTIVA');
     });
 
     test('401 con password incorrecta', () async {
@@ -241,8 +255,23 @@ void main() {
       const nombreUsuario = 'borrar_user';
       const password = 'password-1234';
       final tokenA = await registrar(nombreUsuario, password);
-      final loginB = await post('/auth/login', {'nombreUsuario': nombreUsuario, 'password': password});
-      final tokenB = (jsonDecode(loginB.body) as Map<String, dynamic>)['token'] as String;
+
+      // Otra sesion activa del mismo usuario (de otro dispositivo), insertada
+      // directo en la base: por el limite de una sola sesion activa, ya no
+      // se puede conseguir una segunda llamando a /auth/login.
+      final usuarioId =
+          servidor.db.select('SELECT id FROM usuarios WHERE nombre_usuario = ?', [nombreUsuario]).first['id']
+              as String;
+      const tokenB = 'token-de-prueba-otro-dispositivo';
+      servidor.db.execute(
+        'INSERT INTO sesiones (id, usuario_id, token_hash, expires_at) VALUES (?, ?, ?, ?)',
+        [
+          'sesion-prueba-otro-dispositivo',
+          usuarioId,
+          crypto.sha256.convert(utf8.encode(tokenB)).toString(),
+          '2999-01-01T00:00:00.000Z',
+        ],
+      );
 
       final respuesta = await delete('/auth/account', {'password': password}, token: tokenA);
       expect(respuesta.statusCode, 204);

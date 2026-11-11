@@ -1,9 +1,19 @@
+import 'dart:convert';
+
 import 'package:brilliant_server/auth/errors.dart';
 import 'package:brilliant_server/auth/service.dart';
 import 'package:brilliant_server/config.dart';
 import 'package:brilliant_server/db/connection.dart';
+import 'package:crypto/crypto.dart' as crypto;
 import 'package:sqlite3/sqlite3.dart';
 import 'package:test/test.dart';
+
+/// Mismo hash que usa `AuthService` para guardar el token de una sesion.
+/// Sirve para insertar, directo en la base, una sesion de "otro
+/// dispositivo" sin pasar por `login` (que ahora rechaza una segunda sesion
+/// activa del mismo usuario): simula una sesion que ya estaba abierta de
+/// antes, sin depender de ese limite para armar el escenario del test.
+String _hashTokenDePrueba(String token) => crypto.sha256.convert(utf8.encode(token)).toString();
 
 void main() {
   late Database db;
@@ -70,7 +80,8 @@ void main() {
   group('login', () {
     test('devuelve un token valido con credenciales correctas', () async {
       final service = AuthService(db, config);
-      await service.registrar('login_user', 'password-correcta-1');
+      final registro = await service.registrar('login_user', 'password-correcta-1');
+      service.cerrarSesion(registro.token); // sin esto, el login de abajo chocaria con la sesion del autologin.
       final resultado = await service.login('login_user', 'password-correcta-1');
 
       expect(resultado.token.length, 64); // 32 bytes en hex
@@ -95,11 +106,43 @@ void main() {
     });
   });
 
+  group('login - una sola sesion activa por usuario', () {
+    test('rechaza un login nuevo mientras ya hay una sesion vigente de ese usuario', () async {
+      final service = AuthService(db, config);
+      await service.registrar('unica', 'password-correcta-1'); // el autologin ya deja una sesion activa.
+
+      await expectLater(
+        service.login('unica', 'password-correcta-1'),
+        throwsA(isA<SesionYaActivaError>()),
+      );
+    });
+
+    test('permite un login nuevo despues de cerrar la sesion anterior', () async {
+      final service = AuthService(db, config);
+      final registro = await service.registrar('unica2', 'password-correcta-1');
+      service.cerrarSesion(registro.token);
+
+      final resultado = await service.login('unica2', 'password-correcta-1');
+      expect(resultado.usuario.nombreUsuario, 'unica2');
+    });
+
+    test('permite un login nuevo una vez que la sesion anterior ya expiro', () async {
+      final service = AuthService(db, config);
+      final registro = await service.registrar('unica3', 'password-correcta-1');
+      db.execute(
+        "UPDATE sesiones SET expires_at = '2000-01-01T00:00:00.000Z' WHERE usuario_id = ?",
+        [registro.usuario.id],
+      );
+
+      final resultado = await service.login('unica3', 'password-correcta-1');
+      expect(resultado.usuario.nombreUsuario, 'unica3');
+    });
+  });
+
   group('obtenerUsuarioPorToken', () {
     test('devuelve el usuario de una sesion vigente', () async {
       final service = AuthService(db, config);
-      await service.registrar('sesion', 'password-correcta-1');
-      final resultado = await service.login('sesion', 'password-correcta-1');
+      final resultado = await service.registrar('sesion', 'password-correcta-1');
 
       final usuarioObtenido = service.obtenerUsuarioPorToken(resultado.token);
       expect(usuarioObtenido.id, resultado.usuario.id);
@@ -112,8 +155,7 @@ void main() {
 
     test('rechaza un token expirado', () async {
       final service = AuthService(db, config);
-      await service.registrar('expira', 'password-correcta-1');
-      final resultado = await service.login('expira', 'password-correcta-1');
+      final resultado = await service.registrar('expira', 'password-correcta-1');
 
       db.execute(
         "UPDATE sesiones SET expires_at = '2000-01-01T00:00:00.000Z' WHERE usuario_id = ?",
@@ -127,20 +169,25 @@ void main() {
   group('cerrarSesion', () {
     test('revoca solo la sesion del token dado, no otras sesiones del mismo usuario', () async {
       final service = AuthService(db, config);
-      await service.registrar('multi', 'password-correcta-1');
-      final sesionA = await service.login('multi', 'password-correcta-1');
-      final sesionB = await service.login('multi', 'password-correcta-1');
+      final sesionA = await service.registrar('multi', 'password-correcta-1');
+      // Simula una segunda sesion ya abierta en otro dispositivo (por
+      // ejemplo, de antes de que existiera el limite de una sola sesion
+      // activa), insertada directo en la base.
+      const tokenB = 'token-de-prueba-sesion-b';
+      db.execute(
+        'INSERT INTO sesiones (id, usuario_id, token_hash, expires_at) VALUES (?, ?, ?, ?)',
+        ['sesion-prueba-b', sesionA.usuario.id, _hashTokenDePrueba(tokenB), '2999-01-01T00:00:00.000Z'],
+      );
 
       service.cerrarSesion(sesionA.token);
 
       expect(() => service.obtenerUsuarioPorToken(sesionA.token), throwsA(isA<SesionInvalidaError>()));
-      expect(service.obtenerUsuarioPorToken(sesionB.token).id, sesionB.usuario.id);
+      expect(service.obtenerUsuarioPorToken(tokenB).id, sesionA.usuario.id);
     });
 
     test('rechaza cerrar una sesion ya revocada', () async {
       final service = AuthService(db, config);
-      await service.registrar('revocar', 'password-correcta-1');
-      final resultado = await service.login('revocar', 'password-correcta-1');
+      final resultado = await service.registrar('revocar', 'password-correcta-1');
 
       service.cerrarSesion(resultado.token);
       expect(() => service.cerrarSesion(resultado.token), throwsA(isA<SesionInvalidaError>()));
@@ -164,8 +211,13 @@ void main() {
     test('borra el usuario y revoca todas sus sesiones en una sola operacion', () async {
       final service = AuthService(db, config);
       final resultado = await service.registrar('borrar2', 'password-correcta-1');
-      final sesionA = await service.login('borrar2', 'password-correcta-1');
-      final sesionB = await service.login('borrar2', 'password-correcta-1');
+      // Otra sesion activa de ese mismo usuario, insertada directo en la
+      // base (ver el comentario de arriba, en `cerrarSesion`).
+      const tokenB = 'token-de-prueba-borrar2-b';
+      db.execute(
+        'INSERT INTO sesiones (id, usuario_id, token_hash, expires_at) VALUES (?, ?, ?, ?)',
+        ['sesion-prueba-borrar2-b', resultado.usuario.id, _hashTokenDePrueba(tokenB), '2999-01-01T00:00:00.000Z'],
+      );
 
       await service.eliminarCuenta(resultado.usuario.id, 'password-correcta-1');
 
@@ -175,8 +227,8 @@ void main() {
       final sesionesRestantes = db.select('SELECT id FROM sesiones WHERE usuario_id = ?', [resultado.usuario.id]);
       expect(sesionesRestantes, isEmpty);
 
-      expect(() => service.obtenerUsuarioPorToken(sesionA.token), throwsA(isA<SesionInvalidaError>()));
-      expect(() => service.obtenerUsuarioPorToken(sesionB.token), throwsA(isA<SesionInvalidaError>()));
+      expect(() => service.obtenerUsuarioPorToken(resultado.token), throwsA(isA<SesionInvalidaError>()));
+      expect(() => service.obtenerUsuarioPorToken(tokenB), throwsA(isA<SesionInvalidaError>()));
     });
   });
 

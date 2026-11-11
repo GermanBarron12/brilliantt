@@ -25,6 +25,15 @@ class SesionInvalidaError extends AuthError {
   SesionInvalidaError() : super(401, 'SESION_INVALIDA', 'La sesion no existe, expiro o fue revocada.');
 }
 
+class SesionYaActivaError extends AuthError {
+  SesionYaActivaError()
+      : super(
+          409,
+          'SESION_YA_ACTIVA',
+          'Ya hay una sesion activa con este usuario en otro dispositivo. Cierra esa sesion antes de entrar aqui.',
+        );
+}
+
 class DemasiadasSolicitudesError extends AuthError {
   DemasiadasSolicitudesError([String message = 'Demasiados intentos. Intenta de nuevo mas tarde.'])
       : super(429, 'DEMASIADAS_SOLICITUDES', message);

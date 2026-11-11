@@ -514,13 +514,25 @@ class SalaDePartida {
   /// partida si corresponde — todo en una sola transacción, para que el tablero, el
   /// turno y el estado de la partida nunca queden desincronizados entre sí
   /// ni con lo que ve el cliente tras un reinicio del servidor.
+  ///
+  /// Si con esto se cierra una ronda y la partida sigue en curso, la
+  /// siguiente se abre tirando los dados de una, sin esperar a que el
+  /// jugador a quien le toca tirar lo pida: los dados valen para todos por
+  /// igual, así que no hay nada que decidir antes de tirarlos.
   void _aplicarYPersistir(
     PartidaMultijugadorEstado nuevoEstado,
     String tipoMovimiento,
     Map<String, dynamic> payload,
     String usuarioId,
   ) {
-    final estadoFinal = _posiblementeCerrarRonda(nuevoEstado);
+    var estadoFinal = _posiblementeCerrarRonda(nuevoEstado);
+    final seCerroLaRonda = estadoFinal.numeroRonda != nuevoEstado.numeroRonda;
+    Map<String, dynamic>? payloadTiradaAutomatica;
+    if (seCerroLaRonda && !estadoFinal.terminada) {
+      estadoFinal = aplicarTirarDadosCompartido(estadoFinal, _random);
+      payloadTiradaAutomatica = {'dados': estadoFinal.dadosActuales};
+    }
+
     final cambioJugadorQueTira = estadoFinal.jugadorQueTira != _estado.jugadorQueTira;
     final terminoAhora = estadoFinal.terminada && !_estado.terminada;
     final recienRendidos = [
@@ -534,6 +546,19 @@ class SalaDePartida {
         'INSERT INTO movimientos_partida (id, partida_id, turno, tipo, payload, usuario_id) VALUES (?, ?, ?, ?, ?, ?)',
         [_uuid.v4(), partidaId, estadoFinal.numeroRonda, tipoMovimiento, jsonEncode(payload), usuarioId],
       );
+      if (payloadTiradaAutomatica != null) {
+        _db.execute(
+          'INSERT INTO movimientos_partida (id, partida_id, turno, tipo, payload, usuario_id) VALUES (?, ?, ?, ?, ?, ?)',
+          [
+            _uuid.v4(),
+            partidaId,
+            estadoFinal.numeroRonda,
+            _TipoMovimiento.tirarDadosCompartido,
+            jsonEncode(payloadTiradaAutomatica),
+            null,
+          ],
+        );
+      }
       if (cambioJugadorQueTira) {
         _db.execute('UPDATE partidas SET turno_usuario_id = ? WHERE id = ?', [estadoFinal.jugadorQueTira, partidaId]);
       }

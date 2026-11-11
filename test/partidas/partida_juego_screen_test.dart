@@ -173,7 +173,7 @@ void main() {
       expect(tester.getTopLeft(find.text('Tú')).dx, lessThan(tester.getTopLeft(find.text('beto')).dx));
     });
 
-    testWidgets('la hoja de puntos muestra lo que obtuvo quien se esta mirando', (tester) async {
+    testWidgets('la hoja de puntos siempre muestra lo que obtuvo uno mismo, nunca lo de otro jugador', (tester) async {
       await abrir(tester, _estadoJson(eventosPuntuacion: [_eventoJson(jugadorId: 'u2')]));
 
       List<String> jugadoresDeLasHojas() {
@@ -186,10 +186,12 @@ void main() {
           tester.widgetList<TablaPuntosZonas>(find.byType(TablaPuntosZonas)).expand((t) => t.zonas).length;
       expect(zonasMostradas, zonasNivel1.length);
 
+      // Tocar el nombre de otro jugador en la fila de puntajes no cambia
+      // nada: no se puede ver el tablero ni la hoja de puntos ajena.
       await tester.tap(find.text('beto'));
       await tester.pump();
 
-      expect(jugadoresDeLasHojas(), ['u2', 'u2']);
+      expect(jugadoresDeLasHojas(), ['u1', 'u1']);
     });
 
     testWidgets('en un ancho reducido la hoja de puntos va en una sola fila bajo el tablero', (tester) async {
@@ -309,20 +311,16 @@ void main() {
       expect(canal.enviados, isEmpty);
     });
 
-    testWidgets('tocar a otro jugador muestra su tablero, sin dejar jugar en el', (tester) async {
+    testWidgets('tocar a otro jugador en la fila de puntajes no hace nada: no se puede ver su tablero', (tester) async {
       await abrir(tester, _estadoJson(dados: [1, 3], numeroAnclaElegido: 1));
 
+      // El tablero mostrado sigue siendo el propio (la estrella (0,2) vale
+      // 1, el de ana, no el 2 de beto): tocar el nombre de otro jugador no
+      // cambia nada.
       await tester.tap(find.text('beto'));
       await tester.pump();
 
-      expect(find.textContaining('Estás viendo el tablero de beto'), findsOneWidget);
-      // En el tablero de beto la estrella (0,2) vale 2, no el 1 de ana.
-      expect(tester.widget<TableroWidget>(find.byType(TableroWidget)).valores[0][2], 2);
-      await _tocarCasilla(tester, 0, 2);
-      expect(canal.enviados, isEmpty);
-
-      await tester.tap(find.text('Tú'));
-      await tester.pump();
+      expect(find.textContaining('Estás viendo el tablero de'), findsNothing);
       expect(tester.widget<TableroWidget>(find.byType(TableroWidget)).valores[0][2], 1);
     });
 

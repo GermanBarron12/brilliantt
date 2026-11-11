@@ -215,39 +215,43 @@ void main() {
     await canalSegundo.sink.close();
   });
 
-  test('cuando todos pasan la ronda, esta se cierra y el privilegio de tirar pasa al siguiente', () async {
-    final (codigo, tokenPrimero, tokenSegundo) = await _crearPartidaDeDosIniciada();
-    final canalPrimero = WebSocketChannel.connect(servidor.wsUri('/partidas/$codigo/ws?token=$tokenPrimero'));
-    final mensajesPrimero = _mensajesDe(canalPrimero);
-    final estadoInicial = await mensajesPrimero.next;
-    final jugadorQueTiraInicial = (estadoInicial['partida'] as Map)['jugadorQueTira'] as String;
-    final canalSegundo = WebSocketChannel.connect(servidor.wsUri('/partidas/$codigo/ws?token=$tokenSegundo'));
-    final mensajesSegundo = _mensajesDe(canalSegundo);
-    await mensajesSegundo.next;
+  test(
+    'cuando todos pasan la ronda, esta se cierra, el privilegio de tirar pasa al siguiente '
+    'y la ronda nueva arranca con los dados ya tirados solos',
+    () async {
+      final (codigo, tokenPrimero, tokenSegundo) = await _crearPartidaDeDosIniciada();
+      final canalPrimero = WebSocketChannel.connect(servidor.wsUri('/partidas/$codigo/ws?token=$tokenPrimero'));
+      final mensajesPrimero = _mensajesDe(canalPrimero);
+      final estadoInicial = await mensajesPrimero.next;
+      final jugadorQueTiraInicial = (estadoInicial['partida'] as Map)['jugadorQueTira'] as String;
+      final canalSegundo = WebSocketChannel.connect(servidor.wsUri('/partidas/$codigo/ws?token=$tokenSegundo'));
+      final mensajesSegundo = _mensajesDe(canalSegundo);
+      await mensajesSegundo.next;
 
-    canalPrimero.sink.add(jsonEncode({'tipo': 'tirar_dados'}));
-    await mensajesPrimero.next; // se difunde la tirada
-    await mensajesSegundo.next;
+      canalPrimero.sink.add(jsonEncode({'tipo': 'tirar_dados'}));
+      await mensajesPrimero.next; // se difunde la tirada
+      await mensajesSegundo.next;
 
-    canalPrimero.sink.add(jsonEncode({'tipo': 'pasar_ronda'}));
-    await mensajesPrimero.next; // beto todavia no actuo: la ronda no cierra aun
-    await mensajesSegundo.next;
+      canalPrimero.sink.add(jsonEncode({'tipo': 'pasar_ronda'}));
+      await mensajesPrimero.next; // beto todavia no actuo: la ronda no cierra aun
+      await mensajesSegundo.next;
 
-    canalSegundo.sink.add(jsonEncode({'tipo': 'pasar_ronda'}));
-    final cierre = await mensajesPrimero.next;
-    await mensajesSegundo.next;
+      canalSegundo.sink.add(jsonEncode({'tipo': 'pasar_ronda'}));
+      final cierre = await mensajesPrimero.next;
+      await mensajesSegundo.next;
 
-    final partidaCierre = cierre['partida'] as Map;
-    expect(partidaCierre['numeroRonda'], 2);
-    expect(partidaCierre['dados'], isNull);
-    expect(partidaCierre['jugadorQueTira'], isNot(jugadorQueTiraInicial));
-    expect(partidaCierre['jugadoresQueYaActuaron'], isEmpty);
+      final partidaCierre = cierre['partida'] as Map;
+      expect(partidaCierre['numeroRonda'], 2);
+      expect(partidaCierre['dados'], hasLength(2));
+      expect(partidaCierre['jugadorQueTira'], isNot(jugadorQueTiraInicial));
+      expect(partidaCierre['jugadoresQueYaActuaron'], isEmpty);
 
-    await mensajesPrimero.cancel();
-    await mensajesSegundo.cancel();
-    await canalPrimero.sink.close();
-    await canalSegundo.sink.close();
-  });
+      await mensajesPrimero.cancel();
+      await mensajesSegundo.cancel();
+      await canalPrimero.sink.close();
+      await canalSegundo.sink.close();
+    },
+  );
 
   test('pasar la ronda dos veces en la misma ronda se rechaza', () async {
     final (codigo, tokenPrimero, _) = await _crearPartidaDeDosIniciada();
@@ -424,7 +428,7 @@ void main() {
     final cierre = await mensajesCreador.next.timeout(const Duration(seconds: 2));
     final partidaCierre = cierre['partida'] as Map;
     expect(partidaCierre['numeroRonda'], 2);
-    expect(partidaCierre['dados'], isNull);
+    expect(partidaCierre['dados'], hasLength(2)); // la ronda nueva arranca con los dados ya tirados solos
 
     await mensajesCreador.cancel();
     await canalCreador.sink.close();
@@ -722,7 +726,7 @@ void main() {
       final despues = await mandar(2, 'rendirse');
 
       expect(despues['numeroRonda'], 2);
-      expect(despues['dados'], isNull);
+      expect(despues['dados'], hasLength(2)); // la ronda nueva arranca con los dados ya tirados solos
       expect(despues['jugadorQueTira'], servidor.idDeUsuario('beto_r'));
       expect(despues['terminada'], isFalse);
 

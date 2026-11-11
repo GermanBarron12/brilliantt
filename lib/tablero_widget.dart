@@ -91,7 +91,16 @@ class _Casilla extends StatelessWidget {
             borderRadius: BorderRadius.circular(6),
             border: _borde(colorScheme),
             boxShadow: resaltada
-                ? const [BoxShadow(color: BrilliantPalette.dorado, blurRadius: 8, spreadRadius: 2)]
+                ? const [
+                    // Dos sombras superpuestas: una bien opaca y pegada al
+                    // borde para que el contorno se note incluso sobre
+                    // colores de zona parecidos al dorado, y otra más
+                    // difusa por fuera para el brillo. Con una sola sombra
+                    // tenue (como antes) la casilla iluminada casi no se
+                    // distinguía de las que no lo estaban.
+                    BoxShadow(color: BrilliantPalette.dorado, blurRadius: 2, spreadRadius: 1),
+                    BoxShadow(color: BrilliantPalette.dorado, blurRadius: 14, spreadRadius: 3),
+                  ]
                 : null,
           ),
           child: Stack(
@@ -143,6 +152,10 @@ class _Casilla extends StatelessWidget {
   Border? _borde(ColorScheme colorScheme) {
     if (repetida) return Border.all(color: colorScheme.error, width: 4);
     if (seleccionada) return Border.all(color: colorScheme.primary, width: 3);
+    // Un contorno propio (no solo el brillo del boxShadow): el resplandor
+    // solo no se distinguía bien contra zonas de color parecido al dorado
+    // o contra el blanco.
+    if (resaltada) return Border.all(color: BrilliantPalette.dorado, width: 3);
     // Negro semitransparente (no blanco): el blanco se perdía contra las
     // casillas de zona blanca, mismo problema que el ícono de arriba.
     if (esEstrella) return Border.all(color: Colors.black45, width: 2);

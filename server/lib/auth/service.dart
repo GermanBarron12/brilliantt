@@ -206,8 +206,26 @@ class AuthService {
     }
 
     final usuario = _filaAUsuario(fila);
+
+    // Un usuario, una sesion a la vez: si ya tiene una vigente en otro
+    // dispositivo, este login se rechaza en vez de abrir una segunda (antes
+    // se podia estar conectado desde varios dispositivos al mismo tiempo
+    // con la misma cuenta). Hay que cerrar sesion ahi antes de poder entrar
+    // aca.
+    if (_tieneSesionActiva(usuario.id)) {
+      throw SesionYaActivaError();
+    }
+
     final token = _crearSesion(usuario.id);
     return ResultadoSesion(token, usuario);
+  }
+
+  bool _tieneSesionActiva(String usuarioId) {
+    final sesiones = _db.select(
+      'SELECT revoked_at, expires_at FROM sesiones WHERE usuario_id = ?',
+      [usuarioId],
+    );
+    return sesiones.any(_sesionVigente);
   }
 
   /// Devuelve el usuario propietario de una sesion vigente (no expirada, no

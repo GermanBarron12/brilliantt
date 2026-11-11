@@ -15,6 +15,7 @@ class BrilliantApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Brilliant',
+      debugShowCheckedModeBanner: false,
       theme: BrilliantTheme.light,
       home: const AuthGateReal(baseUrl: apiBaseUrl),
     );
