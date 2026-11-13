@@ -167,6 +167,33 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
     return estado.participantes.firstWhere((p) => p.usuarioId == usuarioId).nombreUsuario;
   }
 
+  /// Las casillas de zonas que ya completó algún otro jugador, con el
+  /// mensaje a mostrar al pasar el mouse (quién o quiénes la completaron).
+  /// Sirve de pista para que convenga ir a otra zona en vez de esta: no
+  /// deshabilita nada, la zona sigue siendo jugable.
+  Map<PosicionCasilla, String> _casillasAtenuadas(EstadoPartidaEnVivo estado, ConfiguracionNivel nivel) {
+    final nombresPorZona = <String, List<String>>{};
+    for (final evento in estado.eventosPuntuacion) {
+      if (evento.jugadorId == widget.usuarioId) continue;
+      final nombre = _nombreDe(estado, evento.jugadorId);
+      final nombres = nombresPorZona.putIfAbsent(evento.zonaId, () => []);
+      if (!nombres.contains(nombre)) nombres.add(nombre);
+    }
+
+    final atenuadas = <PosicionCasilla, String>{};
+    for (final zona in nivel.zonas) {
+      final nombres = nombresPorZona[idDeZona(zona)];
+      if (nombres == null) continue;
+      final mensaje = nombres.length == 1
+          ? '${nombres.first} ya completó esta zona'
+          : '${nombres.join(' y ')} ya completaron esta zona';
+      for (final casilla in zona.casillas) {
+        atenuadas[casilla] = mensaje;
+      }
+    }
+    return atenuadas;
+  }
+
   @override
   Widget build(BuildContext context) {
     final estado = _estado;
@@ -223,6 +250,7 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
                       ? juego.casillasValidas.toSet()
                       : juego.casillasAnclaPosibles,
               repetidas: const {},
+              atenuadas: _casillasAtenuadas(estado, nivel),
               seleccionada: miTablero.ancla,
               onTap: (posicion) => _tocarCasilla(juego, puedoActuar, posicion),
             ),

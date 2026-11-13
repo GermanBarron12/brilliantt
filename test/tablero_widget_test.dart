@@ -186,6 +186,49 @@ void main() {
       expect(bordeEnCasilla(vecinaSinSeleccionar.fila, vecinaSinSeleccionar.columna), isNull);
     });
 
+    testWidgets('una casilla atenuada se ve mas opaca y muestra el mensaje en un tooltip', (tester) async {
+      final valores = List.generate(7, (_) => List<int?>.filled(7, null));
+      const atenuada = PosicionCasilla(0, 1);
+      const vecinaSinAtenuar = PosicionCasilla(0, 0);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: TableroWidget(
+              valores: valores,
+              estrellas: const {},
+              resaltadas: const {},
+              repetidas: const {},
+              atenuadas: {atenuada: 'Ana ya completó esta zona'},
+              seleccionada: null,
+              onTap: (_) {},
+            ),
+          ),
+        ),
+      );
+
+      Color colorEnCasilla(int fila, int columna) {
+        final gestureDetector = find.byType(GestureDetector).at(fila * 7 + columna);
+        final container = tester.widget<Container>(
+          find.descendant(of: gestureDetector, matching: find.byType(Container)),
+        );
+        return (container.decoration as BoxDecoration).color!;
+      }
+
+      // El color sigue siendo el de la zona, pero mezclado con la
+      // superficie: no es exactamente el mismo que una casilla sin atenuar.
+      expect(
+        colorEnCasilla(atenuada.fila, atenuada.columna),
+        isNot(coloresDeZona[layoutTableroNivel1[atenuada.fila][atenuada.columna]]),
+      );
+      expect(
+        colorEnCasilla(vecinaSinAtenuar.fila, vecinaSinAtenuar.columna),
+        coloresDeZona[layoutTableroNivel1[vecinaSinAtenuar.fila][vecinaSinAtenuar.columna]],
+      );
+
+      expect(find.byTooltip('Ana ya completó esta zona'), findsOneWidget);
+    });
+
     group('TableroWidget: layout parametrizado', () {
       test('sin pasar layout, usa layoutTableroNivel1 por defecto (regresión nivel 1)', () {
         const widget = TableroWidget(
