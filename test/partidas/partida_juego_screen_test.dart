@@ -333,6 +333,24 @@ void main() {
       expect(find.text('beto completó Zona azul: +7 puntos'), findsOneWidget);
     });
 
+    testWidgets('la zona que completo otro jugador se ve atenuada con su nombre en el tooltip', (tester) async {
+      await abrir(tester, _estadoJson(eventosPuntuacion: [_eventoJson(jugadorId: 'u2')]));
+
+      final tablero = tester.widget<TableroWidget>(find.byType(TableroWidget));
+      final zona = zonasNivel1.firstWhere((z) => idDeZona(z) == 'azul_f0_c2');
+
+      expect(tablero.atenuadas.keys.toSet(), zona.casillas.toSet());
+      expect(tablero.atenuadas.values.first, 'beto ya completó esta zona');
+    });
+
+    testWidgets('las zonas propias no se atenuan, solo las que completo otro jugador', (tester) async {
+      await abrir(tester, _estadoJson(eventosPuntuacion: [_eventoJson(jugadorId: 'u1')]));
+
+      final tablero = tester.widget<TableroWidget>(find.byType(TableroWidget));
+
+      expect(tablero.atenuadas, isEmpty);
+    });
+
     testWidgets('los puntos que ya existian al entrar no se vuelven a avisar', (tester) async {
       await abrir(tester, _estadoJson(eventosPuntuacion: [_eventoJson(jugadorId: 'u2')]));
 

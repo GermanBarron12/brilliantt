@@ -1,5 +1,7 @@
+import 'package:brilliant_core/brilliant_core.dart';
 import 'package:flutter/material.dart';
 
+import '../tablero_widget.dart';
 import 'lobby_screen.dart';
 import 'partida_api.dart';
 import 'partida_error_banner.dart';
@@ -82,6 +84,8 @@ class _CrearPartidaScreenState extends State<CrearPartidaScreen> {
                       ),
                   ],
                 ),
+                const SizedBox(height: 16),
+                _VistaPreviaTablero(nivel: configuracionPorId(_nivelId)!),
                 const SizedBox(height: 24),
                 Text('Máximo de jugadores', style: textTheme.titleMedium),
                 const SizedBox(height: 8),
@@ -108,6 +112,56 @@ class _CrearPartidaScreenState extends State<CrearPartidaScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Muestra el tablero de [nivel] vacío, solo para que quien crea la
+/// partida vea de antemano cómo quedan distribuidas las zonas de color
+/// antes de confirmar: no todos los niveles son igual de conocidos, y
+/// sin esto había que entrar a la partida para enterarse.
+class _VistaPreviaTablero extends StatelessWidget {
+  const _VistaPreviaTablero({required this.nivel});
+
+  final ConfiguracionNivel nivel;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
+    final valoresVacios = List.generate(nivel.filas, (_) => List<int?>.filled(nivel.columnas, null));
+
+    return Column(
+      children: [
+        Text(
+          'Así se ve el tablero de ${nivel.nombre}',
+          style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+        ),
+        const SizedBox(height: 8),
+        // Tamaño fijo chico (no el ancho completo del formulario): es solo
+        // para reconocer de un vistazo el patrón de colores del nivel, no
+        // para jugar. Si ocupara todo el ancho, en pantallas bajas tapaba
+        // el botón de confirmar sin que se note que hace falta scrollear.
+        SizedBox(
+          width: 180,
+          height: 180,
+          child: Card(
+            clipBehavior: Clip.antiAlias,
+            child: Padding(
+              padding: const EdgeInsets.all(4),
+              child: TableroWidget(
+                layout: nivel.layout,
+                valores: valoresVacios,
+                estrellas: nivel.casillasEstrella.toSet(),
+                resaltadas: const {},
+                repetidas: const {},
+                seleccionada: null,
+                onTap: (_) {},
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

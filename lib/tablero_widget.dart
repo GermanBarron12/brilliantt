@@ -14,6 +14,12 @@ class TableroWidget extends StatelessWidget {
   final Set<PosicionCasilla> estrellas;
   final Set<PosicionCasilla> resaltadas;
   final Set<PosicionCasilla> repetidas;
+
+  /// Casillas de zonas que otro jugador ya completó, con el mensaje a
+  /// mostrar al pasar el mouse (por ejemplo, quién la completó). Se ven
+  /// con el color atenuado; no se deshabilitan, solo sirven de pista para
+  /// que convenga buscar otra zona.
+  final Map<PosicionCasilla, String> atenuadas;
   final PosicionCasilla? seleccionada;
   final void Function(PosicionCasilla posicion) onTap;
   final List<List<ColorZona>> layout;
@@ -26,6 +32,7 @@ class TableroWidget extends StatelessWidget {
     required this.repetidas,
     required this.seleccionada,
     required this.onTap,
+    this.atenuadas = const {},
     this.layout = layoutTableroNivel1,
   });
 
@@ -54,6 +61,7 @@ class TableroWidget extends StatelessWidget {
       resaltada: resaltadas.contains(posicion),
       seleccionada: seleccionada == posicion,
       repetida: repetidas.contains(posicion),
+      mensajeAtenuada: atenuadas[posicion],
       onTap: () => onTap(posicion),
     );
   }
@@ -66,6 +74,11 @@ class _Casilla extends StatelessWidget {
   final bool resaltada;
   final bool seleccionada;
   final bool repetida;
+
+  /// No nulo cuando la zona de esta casilla ya la completó otro jugador:
+  /// el texto a mostrar al pasar el mouse (o al mantener presionado, en
+  /// pantallas táctiles) con quién la completó.
+  final String? mensajeAtenuada;
   final VoidCallback onTap;
 
   const _Casilla({
@@ -75,72 +88,82 @@ class _Casilla extends StatelessWidget {
     required this.resaltada,
     required this.seleccionada,
     required this.repetida,
+    required this.mensajeAtenuada,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.all(2),
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(6),
-            border: _borde(colorScheme),
-            boxShadow: resaltada
-                ? const [
-                    // Dos sombras superpuestas: una bien opaca y pegada al
-                    // borde para que el contorno se note incluso sobre
-                    // colores de zona parecidos al dorado, y otra más
-                    // difusa por fuera para el brillo. Con una sola sombra
-                    // tenue (como antes) la casilla iluminada casi no se
-                    // distinguía de las que no lo estaban.
-                    BoxShadow(color: BrilliantPalette.dorado, blurRadius: 2, spreadRadius: 1),
-                    BoxShadow(color: BrilliantPalette.dorado, blurRadius: 14, spreadRadius: 3),
-                  ]
-                : null,
-          ),
-          child: Stack(
-            children: [
-              if (valor != null)
-                Center(
-                  child: Text(
-                    '$valor',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                      color: _colorDeContenido(color),
-                    ),
+    // Una zona atenuada ya le dio sus puntos más altos a otro jugador: se
+    // ve igual pero deslavada, para que a simple vista se note que conviene
+    // buscar otra zona en vez de esta. No se deshabilita: sigue siendo una
+    // jugada válida, solo que ya rinde menos.
+    final atenuada = mensajeAtenuada != null;
+    final colorMostrado = atenuada ? Color.alphaBlend(colorScheme.surface.withValues(alpha: 0.6), color) : color;
+
+    final casilla = GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: colorMostrado,
+          borderRadius: BorderRadius.circular(6),
+          border: _borde(colorScheme),
+          boxShadow: resaltada
+              ? const [
+                  // Dos sombras superpuestas: una bien opaca y pegada al
+                  // borde para que el contorno se note incluso sobre
+                  // colores de zona parecidos al dorado, y otra más
+                  // difusa por fuera para el brillo. Con una sola sombra
+                  // tenue (como antes) la casilla iluminada casi no se
+                  // distinguía de las que no lo estaban.
+                  BoxShadow(color: BrilliantPalette.dorado, blurRadius: 2, spreadRadius: 1),
+                  BoxShadow(color: BrilliantPalette.dorado, blurRadius: 14, spreadRadius: 3),
+                ]
+              : null,
+        ),
+        child: Stack(
+          children: [
+            if (valor != null)
+              Center(
+                child: Text(
+                  '$valor',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: _colorDeContenido(colorMostrado),
                   ),
                 ),
-              if (esEstrella)
-                Positioned(
-                  right: 2,
-                  bottom: 2,
-                  // Fondo circular oscuro semitransparente detrás del
-                  // ícono: sin esto, la estrella blanca es casi invisible
-                  // en las casillas de zona blanca (mismo tono que el
-                  // ícono), y queda igual de legible en el resto de los
-                  // colores.
-                  child: Container(
-                    padding: const EdgeInsets.all(1),
-                    decoration: const BoxDecoration(color: Colors.black38, shape: BoxShape.circle),
-                    child: const Icon(Icons.star, color: Colors.white, size: 12),
-                  ),
+              ),
+            if (esEstrella)
+              Positioned(
+                right: 2,
+                bottom: 2,
+                // Fondo circular oscuro semitransparente detrás del
+                // ícono: sin esto, la estrella blanca es casi invisible
+                // en las casillas de zona blanca (mismo tono que el
+                // ícono), y queda igual de legible en el resto de los
+                // colores.
+                child: Container(
+                  padding: const EdgeInsets.all(1),
+                  decoration: const BoxDecoration(color: Colors.black38, shape: BoxShape.circle),
+                  child: const Icon(Icons.star, color: Colors.white, size: 12),
                 ),
-              if (repetida)
-                const Positioned(
-                  left: 2,
-                  top: 2,
-                  child: Icon(Icons.warning_rounded, color: Colors.black, size: 16),
-                ),
-            ],
-          ),
+              ),
+            if (repetida)
+              const Positioned(
+                left: 2,
+                top: 2,
+                child: Icon(Icons.warning_rounded, color: Colors.black, size: 16),
+              ),
+          ],
         ),
       ),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.all(2),
+      child: mensajeAtenuada == null ? casilla : Tooltip(message: mensajeAtenuada, child: casilla),
     );
   }
 

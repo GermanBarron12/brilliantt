@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:brilliant_core/brilliant_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -8,6 +9,7 @@ import 'package:http/testing.dart';
 import 'package:brilliant/partidas/crear_partida_screen.dart';
 import 'package:brilliant/partidas/lobby_screen.dart';
 import 'package:brilliant/partidas/partida_api.dart';
+import 'package:brilliant/tablero_widget.dart';
 
 Map<String, dynamic> _partidaJson() => {
       'id': 'p1',
@@ -38,8 +40,10 @@ void main() {
 
       await tester.tap(find.widgetWithText(ChoiceChip, 'Nivel 2'));
       await tester.pump();
+      await tester.ensureVisible(find.widgetWithText(ChoiceChip, '3'));
       await tester.tap(find.widgetWithText(ChoiceChip, '3'));
       await tester.pump();
+      await tester.ensureVisible(find.widgetWithText(ElevatedButton, 'Crear partida'));
       await tester.tap(find.widgetWithText(ElevatedButton, 'Crear partida'));
       await tester.pumpAndSettle();
 
@@ -61,11 +65,35 @@ void main() {
         MaterialApp(home: CrearPartidaScreen(api: api, token: 'token-1', usuarioId: 'u1')),
       );
 
+      await tester.ensureVisible(find.widgetWithText(ElevatedButton, 'Crear partida'));
       await tester.tap(find.widgetWithText(ElevatedButton, 'Crear partida'));
       await tester.pumpAndSettle();
 
       expect(find.text('El nivel debe ser uno de [1, 2, 3, 4].'), findsOneWidget);
       expect(find.byType(CrearPartidaScreen), findsOneWidget);
+    });
+
+    testWidgets('muestra una vista previa del tablero que cambia segun el nivel elegido', (tester) async {
+      final client = MockClient((request) async => http.Response('no deberia llamarse', 500));
+      final api = PartidaApi(baseUrl: 'http://test', client: client);
+
+      await tester.pumpWidget(
+        MaterialApp(home: CrearPartidaScreen(api: api, token: 'token-1', usuarioId: 'u1')),
+      );
+
+      expect(find.byType(TableroWidget), findsOneWidget);
+      expect(
+        tester.widget<TableroWidget>(find.byType(TableroWidget)).layout,
+        configuracionPorId(1)!.layout,
+      );
+
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Nivel 3'));
+      await tester.pump();
+
+      expect(
+        tester.widget<TableroWidget>(find.byType(TableroWidget)).layout,
+        configuracionPorId(3)!.layout,
+      );
     });
 
     testWidgets('no genera overflow en un ancho reducido', (tester) async {
