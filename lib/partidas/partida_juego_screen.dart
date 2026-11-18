@@ -21,9 +21,10 @@ import 'tabla_puntos_zonas.dart';
 /// mandan ahí en vez de aplicarse acá (el servidor es quien manda — ver
 /// `SalaDePartida`).
 ///
-/// El tablero grande es siempre el propio: no se puede ver el de los demás,
-/// solo su puntaje en la fila de arriba. Junto al tablero va la hoja de
-/// puntos por zona propia (ver [TablaPuntosZonas]).
+/// El tablero grande es el propio; tocando a otro jugador en la fila de
+/// puntajes (ordenada de mayor a menor puntaje) se ve el suyo en vivo, sin
+/// poder tocarlo. Junto al tablero va la hoja de puntos por zona de quien
+/// se está mirando (ver [TablaPuntosZonas]).
 ///
 /// Quien se rinde deja de jugar y ya no puede ganar, pero puede quedarse
 /// mirando la partida hasta que termine.
@@ -52,6 +53,9 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
   // primer estado: los puntos que ya existían al entrar (o al volver a
   // entrar a una partida empezada) no se anuncian de nuevo.
   int? _eventosPuntuacionAvisados;
+
+  // De quién es el tablero que se está mirando. `null` es el propio.
+  String? _jugadorObservado;
 
   bool _yaFueAlFinal = false;
 
@@ -219,16 +223,21 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
     final puedoTirar = _conectado && !meRendi && meTocaTirar && estado.dados == null;
     final puedoActuar = _conectado && !meRendi && estado.dados != null && !yaActue;
 
+    final observado = _jugadorObservado;
+    final mirandoElMio = observado == null || !estado.tableros.containsKey(observado);
+    final tableroVisible = mirandoElMio ? miTablero : estado.tableros[observado]!;
+
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
+    final jugadorDeLaHoja = mirandoElMio ? widget.usuarioId : observado;
     final costados = zonasPorCostado(nivel);
     Widget hojaDePuntos(List<ZonaTablero> zonas, {required bool vertical}) {
       return TablaPuntosZonas(
         zonas: zonas,
         nivel: nivel,
         eventos: estado.eventosPuntuacion,
-        jugadorId: widget.usuarioId,
+        jugadorId: jugadorDeLaHoja,
         vertical: vertical,
       );
     }
@@ -242,17 +251,17 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
             padding: const EdgeInsets.all(4),
             child: TableroWidget(
               layout: nivel.layout,
-              valores: miTablero.tablero,
+              valores: tableroVisible.tablero,
               estrellas: nivel.casillasEstrella.toSet(),
-              resaltadas: !puedoActuar
+              resaltadas: !(puedoActuar && mirandoElMio)
                   ? const {}
                   : juego.ancla != null
                       ? juego.casillasValidas.toSet()
                       : juego.casillasAnclaPosibles,
               repetidas: const {},
               atenuadas: _casillasAtenuadas(estado, nivel),
-              seleccionada: miTablero.ancla,
-              onTap: (posicion) => _tocarCasilla(juego, puedoActuar, posicion),
+              seleccionada: tableroVisible.ancla,
+              onTap: (posicion) => _tocarCasilla(juego, puedoActuar && mirandoElMio, posicion),
             ),
           ),
         ),
@@ -326,7 +335,12 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
                         yaActuo: estado.jugadoresQueYaActuaron.contains(participante.usuarioId),
                         desconectado: participante.estado == EstadoParticipante.desconectado,
                         rendido: participante.estado == EstadoParticipante.rendido,
-                        seleccionado: participante.usuarioId == widget.usuarioId,
+                        seleccionado: mirandoElMio
+                            ? participante.usuarioId == widget.usuarioId
+                            : participante.usuarioId == observado,
+                        onTap: () => setState(() {
+                          _jugadorObservado = participante.usuarioId == widget.usuarioId ? null : participante.usuarioId;
+                        }),
                       ),
                     ),
                 ],
@@ -334,7 +348,9 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              meRendi ? 'Te rendiste. Puedes seguir mirando la partida.' : _instruccion(estado, juego),
+              mirandoElMio
+                  ? (meRendi ? 'Te rendiste. Puedes seguir mirando la partida.' : _instruccion(estado, juego))
+                  : 'Estás viendo el tablero de ${_nombreDe(estado, observado)}. Toca "Tú" para volver al tuyo.',
               textAlign: TextAlign.center,
               style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
             ),
@@ -343,8 +359,8 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
               dados: estado.dados,
               claveDeTirada: estado.numeroRonda,
               numeroSeleccionado: miTablero.numeroAnclaElegido,
-              seleccionHabilitada: puedoActuar && miTablero.ancla == null,
-              onSeleccionar: puedoActuar ? widget.socket.seleccionarDado : null,
+              seleccionHabilitada: puedoActuar && mirandoElMio && miTablero.ancla == null,
+              onSeleccionar: puedoActuar && mirandoElMio ? widget.socket.seleccionarDado : null,
             ),
             const SizedBox(height: 12),
             Expanded(
@@ -548,8 +564,8 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
 
 /// El puntaje de un jugador en la fila de arriba del tablero. Muestra
 /// además si le toca tirar, si ya jugó esta ronda, si está desconectado y
-/// si se rindió. Es solo informativa: no se puede tocar para ver el
-/// tablero ajeno, cada uno solo ve el suyo.
+/// si se rindió;
+/// al tocarlo se pasa a ver su tablero.
 class _PuntajeJugador extends StatelessWidget {
   const _PuntajeJugador({
     required this.posicion,
@@ -560,6 +576,7 @@ class _PuntajeJugador extends StatelessWidget {
     required this.desconectado,
     required this.rendido,
     required this.seleccionado,
+    required this.onTap,
   });
 
   final int? posicion;
@@ -570,6 +587,7 @@ class _PuntajeJugador extends StatelessWidget {
   final bool desconectado;
   final bool rendido;
   final bool seleccionado;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -580,48 +598,52 @@ class _PuntajeJugador extends StatelessWidget {
     return Material(
       color: seleccionado ? colorScheme.primaryContainer : colorScheme.surfaceContainerHighest,
       borderRadius: BorderRadius.circular(12),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 48),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (posicion != null) ...[
-                Tooltip(
-                  message: 'Puesto $posicion',
-                  child: Text('$posicion.º', style: textTheme.titleMedium?.copyWith(color: colorTexto)),
-                ),
-                const SizedBox(width: 8),
-              ],
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(nombre, style: textTheme.labelMedium?.copyWith(color: colorTexto)),
-                  Text('$puntaje pts', style: textTheme.titleMedium?.copyWith(color: colorTexto)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 48),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (posicion != null) ...[
+                  Tooltip(
+                    message: 'Puesto $posicion',
+                    child: Text('$posicion.º', style: textTheme.titleMedium?.copyWith(color: colorTexto)),
+                  ),
+                  const SizedBox(width: 8),
                 ],
-              ),
-              if (tiraLosDados) ...[
-                const SizedBox(width: 8),
-                Tooltip(message: 'Tira los dados', child: Icon(Icons.casino, size: 18, color: colorTexto)),
-              ],
-              if (yaActuo) ...[
-                const SizedBox(width: 8),
-                Tooltip(
-                  message: 'Ya jugó esta ronda',
-                  child: Icon(Icons.check_circle, size: 18, color: colorTexto),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(nombre, style: textTheme.labelMedium?.copyWith(color: colorTexto)),
+                    Text('$puntaje pts', style: textTheme.titleMedium?.copyWith(color: colorTexto)),
+                  ],
                 ),
+                if (tiraLosDados) ...[
+                  const SizedBox(width: 8),
+                  Tooltip(message: 'Tira los dados', child: Icon(Icons.casino, size: 18, color: colorTexto)),
+                ],
+                if (yaActuo) ...[
+                  const SizedBox(width: 8),
+                  Tooltip(
+                    message: 'Ya jugó esta ronda',
+                    child: Icon(Icons.check_circle, size: 18, color: colorTexto),
+                  ),
+                ],
+                if (rendido) ...[
+                  const SizedBox(width: 8),
+                  Tooltip(message: 'Se rindió', child: Icon(Icons.flag, size: 18, color: colorTexto)),
+                ],
+                if (desconectado) ...[
+                  const SizedBox(width: 8),
+                  Tooltip(message: 'Desconectado', child: Icon(Icons.cloud_off, size: 18, color: colorScheme.error)),
+                ],
               ],
-              if (rendido) ...[
-                const SizedBox(width: 8),
-                Tooltip(message: 'Se rindió', child: Icon(Icons.flag, size: 18, color: colorTexto)),
-              ],
-              if (desconectado) ...[
-                const SizedBox(width: 8),
-                Tooltip(message: 'Desconectado', child: Icon(Icons.cloud_off, size: 18, color: colorScheme.error)),
-              ],
-            ],
+            ),
           ),
         ),
       ),
