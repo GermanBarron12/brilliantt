@@ -111,6 +111,26 @@ flutter test
   `register_screen.dart`). `autenticacion_puerta.dart` decide si se muestra
   el login o la app según haya sesión guardada.
 
+### Sonido
+
+- `lib/sonido/`: efectos de sonido del juego (tirar los dados, colocar un
+  número, completar una zona, saltar el turno/pasar la ronda y ganar la
+  partida) y el control de volumen/silenciado.
+  - `efecto_sonido.dart`: los distintos efectos y el archivo de
+    `assets/sonidos/` que le corresponde a cada uno.
+  - `configuracion_sonido.dart`, `sonido_cubit.dart`: la preferencia de
+    volumen/silenciado del jugador, persistida entre partidas con
+    `shared_preferences`.
+  - `sonido_servicio.dart`: reproduce los efectos (con `audioplayers`)
+    respetando esa preferencia.
+  - `control_sonido_boton.dart`: el botón de la barra superior (en
+    `InicioScreen`, `JuegoScreen` y `PartidaJuegoScreen`) para subir/bajar
+    el volumen o silenciar.
+  - Los archivos de audio en `assets/sonidos/` son tonos sintetizados
+    (generados por un script, sin depender de ningún recurso externo); se
+    pueden reemplazar por sonidos propios manteniendo el mismo nombre de
+    archivo.
+
 ### Partida multijugador
 
 - `lib/partidas/`: lobby (crear/unirse a una partida por código de

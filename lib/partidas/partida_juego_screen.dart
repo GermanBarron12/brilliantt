@@ -2,10 +2,14 @@ import 'dart:async';
 
 import 'package:brilliant_core/brilliant_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../dado_widget.dart';
 import '../notificacion_puntuacion.dart';
 import '../reglas_zona_panel.dart';
+import '../sonido/control_sonido_boton.dart';
+import '../sonido/efecto_sonido.dart';
+import '../sonido/sonido_servicio.dart';
 import '../tablero_widget.dart';
 import 'estado_partida_en_vivo.dart';
 import 'partida.dart';
@@ -96,6 +100,9 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
     if (estado.terminada) {
       if (_yaFueAlFinal) return;
       _yaFueAlFinal = true;
+      if (estado.ganadores.contains(widget.usuarioId)) {
+        context.read<SonidoServicio>().reproducir(EfectoSonido.victoria);
+      }
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => PartidaFinScreen(estado: estado, usuarioId: widget.usuarioId),
@@ -120,6 +127,7 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
 
   void _avisarPuntuacion(EstadoPartidaEnVivo estado, EventoPuntuacionRemoto evento) {
     if (evento.jugadorId == widget.usuarioId) {
+      context.read<SonidoServicio>().reproducir(EfectoSonido.zonaCompletada);
       mostrarNotificacionPuntuacion(
         context,
         EventoPuntuacion(
@@ -272,6 +280,7 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
       appBar: AppBar(
         title: const Text('Brilliant · Partida'),
         actions: [
+          const ControlSonidoBoton(),
           if (!meRendi)
             IconButton(
               icon: const Icon(Icons.flag_outlined),
@@ -397,7 +406,12 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
               runSpacing: 8,
               children: [
                 ElevatedButton(
-                  onPressed: puedoTirar ? widget.socket.tirarDados : null,
+                  onPressed: puedoTirar
+                      ? () {
+                          context.read<SonidoServicio>().reproducir(EfectoSonido.tirarDados);
+                          widget.socket.tirarDados();
+                        }
+                      : null,
                   child: const Text('Tirar dados'),
                 ),
                 OutlinedButton(
@@ -441,6 +455,7 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
     if (!puedoActuar) return;
     final esDestino = juego.ancla != null && juego.casillasValidas.contains(posicion);
     if (esDestino || juego.casillasAnclaPosibles.contains(posicion)) {
+      if (esDestino) context.read<SonidoServicio>().reproducir(EfectoSonido.colocarNumero);
       widget.socket.tocarCasilla(posicion.fila, posicion.columna);
     }
   }
@@ -505,6 +520,7 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
     );
 
     if (confirmar == true) {
+      context.read<SonidoServicio>().reproducir(EfectoSonido.saltarTurno);
       widget.socket.pasarRonda();
     }
   }

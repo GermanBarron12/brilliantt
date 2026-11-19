@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:brilliant_core/brilliant_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:brilliant/dado_widget.dart';
@@ -10,7 +11,25 @@ import 'package:brilliant/partidas/partida_fin_screen.dart';
 import 'package:brilliant/partidas/partida_juego_screen.dart';
 import 'package:brilliant/partidas/partida_socket.dart';
 import 'package:brilliant/partidas/tabla_puntos_zonas.dart';
+import 'package:brilliant/sonido/sonido_cubit.dart';
+import 'package:brilliant/sonido/sonido_servicio.dart';
 import 'package:brilliant/tablero_widget.dart';
+
+/// PartidaJuegoScreen muestra un botón de sonido en la barra superior, que
+/// necesita [SonidoCubit] y [SonidoServicio] en el árbol.
+Widget _conSonido(Widget child) {
+  return BlocProvider(
+    create: (_) => SonidoCubit(),
+    child: Builder(
+      builder: (context) {
+        return RepositoryProvider(
+          create: (context) => SonidoServicio(context.read<SonidoCubit>()),
+          child: child,
+        );
+      },
+    ),
+  );
+}
 
 class _CanalFalso implements CanalPartida {
   final _entrante = StreamController<dynamic>.broadcast();
@@ -127,7 +146,7 @@ void main() {
       addTearDown(() => tester.pumpWidget(const SizedBox()));
       socket.conectar('ABC123', 'token-1');
       await tester.pumpWidget(
-        MaterialApp(home: PartidaJuegoScreen(socket: socket, usuarioId: 'u1')),
+        MaterialApp(home: _conSonido(PartidaJuegoScreen(socket: socket, usuarioId: 'u1'))),
       );
       canal.simularEstado(estado);
       await tester.pump();
@@ -137,7 +156,7 @@ void main() {
       addTearDown(() => tester.pumpWidget(const SizedBox()));
       socket.conectar('ABC123', 'token-1');
       await tester.pumpWidget(
-        MaterialApp(home: PartidaJuegoScreen(socket: socket, usuarioId: 'u1')),
+        MaterialApp(home: _conSonido(PartidaJuegoScreen(socket: socket, usuarioId: 'u1'))),
       );
 
       expect(find.byType(CircularProgressIndicator), findsOneWidget);

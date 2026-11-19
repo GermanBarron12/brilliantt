@@ -1,10 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:brilliant/configuracion_nivel.dart';
 import 'package:brilliant/niveles_oficiales.dart';
 import 'package:brilliant/numeros_iniciales_screen.dart';
+import 'package:brilliant/sonido/sonido_cubit.dart';
+import 'package:brilliant/sonido/sonido_servicio.dart';
 import 'package:brilliant/tablero_layout.dart';
+
+/// Al completar los números, esta pantalla navega a JuegoScreen, que
+/// muestra un botón de sonido en la barra superior: necesita [SonidoCubit]
+/// y [SonidoServicio] en el árbol.
+Widget _conSonido(Widget child) {
+  return BlocProvider(
+    create: (_) => SonidoCubit(),
+    child: Builder(
+      builder: (context) {
+        return RepositoryProvider(
+          create: (context) => SonidoServicio(context.read<SonidoCubit>()),
+          child: child,
+        );
+      },
+    ),
+  );
+}
 
 void main() {
   ElevatedButton botonInicio(WidgetTester tester) =>
@@ -48,7 +68,10 @@ void main() {
     });
 
     testWidgets('Inicio abre la partida con los 6 números colocados', (tester) async {
-      await tester.pumpWidget(const MaterialApp(home: NumerosInicialesScreen()));
+      // El proveedor envuelve el MaterialApp completo: JuegoScreen, a la
+      // que se navega con `Navigator.push`, es hermana de `home` en el
+      // árbol del Overlay, no su descendiente.
+      await tester.pumpWidget(_conSonido(const MaterialApp(home: NumerosInicialesScreen())));
 
       for (var i = 0; i < 6; i++) {
         await elegirEnCasillaEstrella(tester, i, i + 1);

@@ -6,9 +6,27 @@ import 'package:brilliant/juego_cubit.dart';
 import 'package:brilliant/juego_screen.dart';
 import 'package:brilliant/niveles_oficiales.dart';
 import 'package:brilliant/seleccion_nivel_screen.dart';
+import 'package:brilliant/sonido/sonido_cubit.dart';
+import 'package:brilliant/sonido/sonido_servicio.dart';
 import 'package:brilliant/tablero_layout.dart';
 import 'package:brilliant/tablero_widget.dart';
 import 'package:brilliant/zonas_tablero.dart';
+
+/// El recorrido termina en JuegoScreen, que muestra un botón de sonido en
+/// la barra superior: necesita [SonidoCubit] y [SonidoServicio] en el árbol.
+Widget _conSonido(Widget child) {
+  return BlocProvider(
+    create: (_) => SonidoCubit(),
+    child: Builder(
+      builder: (context) {
+        return RepositoryProvider(
+          create: (context) => SonidoServicio(context.read<SonidoCubit>()),
+          child: child,
+        );
+      },
+    ),
+  );
+}
 
 /// Para la mayoría de los niveles, cualquier permutación de 1 a 6 sirve:
 /// ninguna de sus zonas rechaza un número por sí solo en una casilla
@@ -29,7 +47,12 @@ void main() {
   group('Flujo completo: selector de nivel -> numeros iniciales -> partida (los 4 niveles)', () {
     for (final nivel in configuracionesOficiales) {
       testWidgets('nivel ${nivel.id}: conserva su configuracion en todo el recorrido', (tester) async {
-        await tester.pumpWidget(const MaterialApp(home: SeleccionNivelScreen()));
+        // El proveedor de sonido envuelve el MaterialApp completo (no solo
+        // `home`): las pantallas a las que se navega con `Navigator.push`
+        // (números iniciales, partida) son hermanas de `home` en el árbol
+        // del Overlay, no sus descendientes, así que un proveedor puesto
+        // solo alrededor de `home` no llegaría a ellas.
+        await tester.pumpWidget(_conSonido(const MaterialApp(home: SeleccionNivelScreen())));
 
         await tester.tap(find.text('Nivel ${nivel.id}'));
         await tester.pumpAndSettle();

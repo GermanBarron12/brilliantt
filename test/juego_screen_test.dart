@@ -9,8 +9,27 @@ import 'package:brilliant/dado_widget.dart';
 import 'package:brilliant/juego_cubit.dart';
 import 'package:brilliant/juego_screen.dart';
 import 'package:brilliant/reglas_zona_panel.dart';
+import 'package:brilliant/sonido/sonido_cubit.dart';
+import 'package:brilliant/sonido/sonido_servicio.dart';
 import 'package:brilliant/tablero_layout.dart';
 import 'package:brilliant/tablero_widget.dart';
+
+/// JuegoScreen muestra un botón de sonido en la barra superior, que
+/// necesita [SonidoCubit] y [SonidoServicio] en el árbol: se los da acá
+/// para que todas las pruebas de esta pantalla no tengan que repetirlo.
+Widget _conSonido(Widget child) {
+  return BlocProvider(
+    create: (_) => SonidoCubit(),
+    child: Builder(
+      builder: (context) {
+        return RepositoryProvider(
+          create: (context) => SonidoServicio(context.read<SonidoCubit>()),
+          child: child,
+        );
+      },
+    ),
+  );
+}
 
 /// Devuelve, en orden, los valores de dados que se le pidan.
 class _DadosFijos implements Random {
@@ -31,12 +50,14 @@ class _DadosFijos implements Random {
 
 Widget _pantallaDePrueba(List<int> secuenciaDeDados) {
   return MaterialApp(
-    home: BlocProvider(
-      create: (_) => JuegoCubit(
-        tableroDesdeNumerosIniciales([1, 2, 3, 4, 5, 6]),
-        random: _DadosFijos(secuenciaDeDados),
+    home: _conSonido(
+      BlocProvider(
+        create: (_) => JuegoCubit(
+          tableroDesdeNumerosIniciales([1, 2, 3, 4, 5, 6]),
+          random: _DadosFijos(secuenciaDeDados),
+        ),
+        child: const JuegoScreen(),
       ),
-      child: const JuegoScreen(),
     ),
   );
 }
@@ -205,9 +226,11 @@ void main() {
 
         await tester.pumpWidget(
           MaterialApp(
-            home: BlocProvider(
-              create: (_) => JuegoCubit(tableroVacio, random: _DadosFijos([1, 2])),
-              child: const JuegoScreen(),
+            home: _conSonido(
+              BlocProvider(
+                create: (_) => JuegoCubit(tableroVacio, random: _DadosFijos([1, 2])),
+                child: const JuegoScreen(),
+              ),
             ),
           ),
         );
@@ -234,9 +257,11 @@ void main() {
 
         await tester.pumpWidget(
           MaterialApp(
-            home: BlocProvider(
-              create: (_) => JuegoCubit(tablero, random: _DadosFijos([2, 2])),
-              child: const JuegoScreen(),
+            home: _conSonido(
+              BlocProvider(
+                create: (_) => JuegoCubit(tablero, random: _DadosFijos([2, 2])),
+                child: const JuegoScreen(),
+              ),
             ),
           ),
         );
@@ -274,9 +299,11 @@ void main() {
 
         await tester.pumpWidget(
           MaterialApp(
-            home: BlocProvider(
-              create: (_) => JuegoCubit(tablero, random: _DadosFijos([2, 2, 1, 3])),
-              child: const JuegoScreen(),
+            home: _conSonido(
+              BlocProvider(
+                create: (_) => JuegoCubit(tablero, random: _DadosFijos([2, 2, 1, 3])),
+                child: const JuegoScreen(),
+              ),
             ),
           ),
         );
@@ -332,9 +359,11 @@ void main() {
 
           await tester.pumpWidget(
             MaterialApp(
-              home: BlocProvider(
-                create: (_) => JuegoCubit(tablero, nivel: nivelDePrueba),
-                child: const JuegoScreen(),
+              home: _conSonido(
+                BlocProvider(
+                  create: (_) => JuegoCubit(tablero, nivel: nivelDePrueba),
+                  child: const JuegoScreen(),
+                ),
               ),
             ),
           );

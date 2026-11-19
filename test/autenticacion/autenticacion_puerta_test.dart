@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -9,8 +10,27 @@ import 'package:brilliant/autenticacion/autenticacion_api.dart';
 import 'package:brilliant/autenticacion/autenticacion_puerta.dart';
 import 'package:brilliant/autenticacion/autenticacion_repositorio.dart';
 import 'package:brilliant/inicio_screen.dart';
+import 'package:brilliant/sonido/sonido_cubit.dart';
+import 'package:brilliant/sonido/sonido_servicio.dart';
 
 import 'falso_token_almacen.dart';
+
+/// InicioScreen (a la que AuthGate navega al haber sesión) muestra un
+/// botón de sonido en la barra superior, que necesita [SonidoCubit] y
+/// [SonidoServicio] en el árbol.
+Widget _conSonido(Widget child) {
+  return BlocProvider(
+    create: (_) => SonidoCubit(),
+    child: Builder(
+      builder: (context) {
+        return RepositoryProvider(
+          create: (context) => SonidoServicio(context.read<SonidoCubit>()),
+          child: child,
+        );
+      },
+    ),
+  );
+}
 
 void main() {
   group('AuthGate', () {
@@ -19,7 +39,10 @@ void main() {
       final client = MockClient((request) async => http.Response('no deberia llamarse', 500));
       final repo = AuthRepository(api: AuthApi(baseUrl: 'http://test', client: client), tokenStorage: store);
 
-      await tester.pumpWidget(MaterialApp(home: AuthGate(repository: repo)));
+      // El proveedor envuelve el MaterialApp completo: InicioScreen, a la
+      // que AuthGate navega con `Navigator.push`, es hermana de `home` en
+      // el árbol del Overlay, no su descendiente.
+      await tester.pumpWidget(_conSonido(MaterialApp(home: AuthGate(repository: repo))));
       await tester.pumpAndSettle();
 
       expect(find.widgetWithText(ElevatedButton, 'Iniciar sesión'), findsOneWidget);
@@ -38,7 +61,10 @@ void main() {
       });
       final repo = AuthRepository(api: AuthApi(baseUrl: 'http://test', client: client), tokenStorage: store);
 
-      await tester.pumpWidget(MaterialApp(home: AuthGate(repository: repo)));
+      // El proveedor envuelve el MaterialApp completo: InicioScreen, a la
+      // que AuthGate navega con `Navigator.push`, es hermana de `home` en
+      // el árbol del Overlay, no su descendiente.
+      await tester.pumpWidget(_conSonido(MaterialApp(home: AuthGate(repository: repo))));
       await tester.pumpAndSettle();
 
       expect(find.byType(InicioScreen), findsOneWidget);
@@ -62,7 +88,10 @@ void main() {
       });
       final repo = AuthRepository(api: AuthApi(baseUrl: 'http://test', client: client), tokenStorage: store);
 
-      await tester.pumpWidget(MaterialApp(home: AuthGate(repository: repo)));
+      // El proveedor envuelve el MaterialApp completo: InicioScreen, a la
+      // que AuthGate navega con `Navigator.push`, es hermana de `home` en
+      // el árbol del Overlay, no su descendiente.
+      await tester.pumpWidget(_conSonido(MaterialApp(home: AuthGate(repository: repo))));
       await tester.pumpAndSettle();
 
       await tester.tap(find.byTooltip('Opciones de la cuenta'));
@@ -87,7 +116,10 @@ void main() {
       });
       final repo = AuthRepository(api: AuthApi(baseUrl: 'http://test', client: client), tokenStorage: store);
 
-      await tester.pumpWidget(MaterialApp(home: AuthGate(repository: repo)));
+      // El proveedor envuelve el MaterialApp completo: InicioScreen, a la
+      // que AuthGate navega con `Navigator.push`, es hermana de `home` en
+      // el árbol del Overlay, no su descendiente.
+      await tester.pumpWidget(_conSonido(MaterialApp(home: AuthGate(repository: repo))));
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Multijugador'));
@@ -114,7 +146,10 @@ void main() {
       });
       final repo = AuthRepository(api: AuthApi(baseUrl: 'http://test', client: client), tokenStorage: store);
 
-      await tester.pumpWidget(MaterialApp(home: AuthGate(repository: repo)));
+      // El proveedor envuelve el MaterialApp completo: InicioScreen, a la
+      // que AuthGate navega con `Navigator.push`, es hermana de `home` en
+      // el árbol del Overlay, no su descendiente.
+      await tester.pumpWidget(_conSonido(MaterialApp(home: AuthGate(repository: repo))));
       await tester.pumpAndSettle();
 
       await tester.tap(find.widgetWithText(TextButton, '¿No tienes cuenta? Créala'));
@@ -149,7 +184,10 @@ void main() {
       });
       final repo = AuthRepository(api: AuthApi(baseUrl: 'http://test', client: client), tokenStorage: store);
 
-      await tester.pumpWidget(MaterialApp(home: AuthGate(repository: repo)));
+      // El proveedor envuelve el MaterialApp completo: InicioScreen, a la
+      // que AuthGate navega con `Navigator.push`, es hermana de `home` en
+      // el árbol del Overlay, no su descendiente.
+      await tester.pumpWidget(_conSonido(MaterialApp(home: AuthGate(repository: repo))));
       await tester.pumpAndSettle();
 
       await tester.tap(find.byTooltip('Opciones de la cuenta'));
@@ -184,7 +222,10 @@ void main() {
       });
       final repo = AuthRepository(api: AuthApi(baseUrl: 'http://test', client: client), tokenStorage: store);
 
-      await tester.pumpWidget(MaterialApp(home: AuthGate(repository: repo)));
+      // El proveedor envuelve el MaterialApp completo: InicioScreen, a la
+      // que AuthGate navega con `Navigator.push`, es hermana de `home` en
+      // el árbol del Overlay, no su descendiente.
+      await tester.pumpWidget(_conSonido(MaterialApp(home: AuthGate(repository: repo))));
       await tester.pumpAndSettle();
 
       await tester.tap(find.byTooltip('Opciones de la cuenta'));

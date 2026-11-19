@@ -1,8 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:brilliant/inicio_screen.dart';
 import 'package:brilliant/seleccion_nivel_screen.dart';
+import 'package:brilliant/sonido/sonido_cubit.dart';
+import 'package:brilliant/sonido/sonido_servicio.dart';
+
+/// InicioScreen muestra un botón de sonido en la barra superior, que
+/// necesita [SonidoCubit] y [SonidoServicio] en el árbol.
+Widget _conSonido(Widget child) {
+  return BlocProvider(
+    create: (_) => SonidoCubit(),
+    child: Builder(
+      builder: (context) {
+        return RepositoryProvider(
+          create: (context) => SonidoServicio(context.read<SonidoCubit>()),
+          child: child,
+        );
+      },
+    ),
+  );
+}
 
 void main() {
   group('InicioScreen', () {
@@ -14,11 +33,13 @@ void main() {
     }) {
       return tester.pumpWidget(
         MaterialApp(
-          home: InicioScreen(
-            nombreUsuario: 'ana',
-            onJugarMultijugador: onJugarMultijugador ?? () {},
-            onCerrarSesion: onCerrarSesion ?? () {},
-            onEliminarCuenta: onEliminarCuenta ?? (_) async => null,
+          home: _conSonido(
+            InicioScreen(
+              nombreUsuario: 'ana',
+              onJugarMultijugador: onJugarMultijugador ?? () {},
+              onCerrarSesion: onCerrarSesion ?? () {},
+              onEliminarCuenta: onEliminarCuenta ?? (_) async => null,
+            ),
           ),
         ),
       );

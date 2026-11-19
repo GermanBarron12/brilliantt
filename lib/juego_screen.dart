@@ -5,6 +5,10 @@ import 'dado_widget.dart';
 import 'juego_cubit.dart';
 import 'notificacion_puntuacion.dart';
 import 'reglas_zona_panel.dart';
+import 'sonido/control_sonido_boton.dart';
+import 'sonido/efecto_sonido.dart';
+import 'sonido/sonido_servicio.dart';
+import 'tablero_layout.dart';
 import 'tablero_widget.dart';
 
 /// Pantalla de la partida: se tiran los dados, se elige con cuál se va a
@@ -37,6 +41,7 @@ class _JuegoScreenState extends State<JuegoScreen> {
       appBar: AppBar(
         title: const Text('Brilliant · Partida'),
         actions: [
+          const ControlSonidoBoton(),
           IconButton(
             icon: const Icon(Icons.info_outline),
             tooltip: 'Reglas de las zonas',
@@ -48,13 +53,16 @@ class _JuegoScreenState extends State<JuegoScreen> {
         listenWhen: (previo, actual) =>
             actual.eventosPuntuacion.length != previo.eventosPuntuacion.length,
         listener: (context, estado) {
+          final sonido = context.read<SonidoServicio>();
           for (var i = _eventosPuntuacionMostrados; i < estado.eventosPuntuacion.length; i++) {
             mostrarNotificacionPuntuacion(context, estado.eventosPuntuacion[i]);
+            sonido.reproducir(EfectoSonido.zonaCompletada);
           }
           _eventosPuntuacionMostrados = estado.eventosPuntuacion.length;
         },
         builder: (context, estado) {
           final cubit = context.read<JuegoCubit>();
+          final sonido = context.read<SonidoServicio>();
 
           final colorScheme = Theme.of(context).colorScheme;
           final textTheme = Theme.of(context).textTheme;
@@ -104,7 +112,7 @@ class _JuegoScreenState extends State<JuegoScreen> {
                                 : estado.casillasAnclaPosibles,
                             repetidas: const {},
                             seleccionada: estado.ancla,
-                            onTap: cubit.tocarCasilla,
+                            onTap: (posicion) => _tocarCasilla(sonido, cubit, estado, posicion),
                           ),
                         ),
                       ),
@@ -118,11 +126,16 @@ class _JuegoScreenState extends State<JuegoScreen> {
                   runSpacing: 8,
                   children: [
                     ElevatedButton(
-                      onPressed: estado.puedeVolverATirar ? cubit.tirarDados : null,
+                      onPressed: estado.puedeVolverATirar
+                          ? () {
+                              sonido.reproducir(EfectoSonido.tirarDados);
+                              cubit.tirarDados();
+                            }
+                          : null,
                       child: const Text('Tirar dados'),
                     ),
                     OutlinedButton(
-                      onPressed: () => _confirmarSaltarTurno(context, cubit, estado),
+                      onPressed: () => _confirmarSaltarTurno(context, sonido, cubit, estado),
                       child: const Text('Saltar turno'),
                     ),
                   ],
@@ -149,7 +162,21 @@ class _JuegoScreenState extends State<JuegoScreen> {
     return 'Dados: ${dados[0]} y ${dados[1]}. Toca uno de los dados para elegir con cuál número anclar.';
   }
 
-  Future<void> _confirmarSaltarTurno(BuildContext context, JuegoCubit cubit, JuegoEstado estado) async {
+  /// Reproduce el sonido de colocar solo cuando el toque realmente coloca
+  /// un número (no cuando solo selecciona el ancla).
+  void _tocarCasilla(SonidoServicio sonido, JuegoCubit cubit, JuegoEstado estado, PosicionCasilla posicion) {
+    if (estado.ancla != null && estado.casillasValidas.contains(posicion)) {
+      sonido.reproducir(EfectoSonido.colocarNumero);
+    }
+    cubit.tocarCasilla(posicion);
+  }
+
+  Future<void> _confirmarSaltarTurno(
+    BuildContext context,
+    SonidoServicio sonido,
+    JuegoCubit cubit,
+    JuegoEstado estado,
+  ) async {
     final hayJugada = estado.dados != null && !estado.puedeVolverATirar;
     final confirmar = await showDialog<bool>(
       context: context,
@@ -176,6 +203,7 @@ class _JuegoScreenState extends State<JuegoScreen> {
     );
 
     if (confirmar == true) {
+      sonido.reproducir(EfectoSonido.saltarTurno);
       cubit.saltarTurno();
     }
   }

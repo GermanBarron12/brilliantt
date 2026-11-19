@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'seleccion_nivel_screen.dart';
+import 'sonido/control_sonido_boton.dart';
 
 /// Pantalla de inicio, a la que se llega al iniciar sesión: se elige entre
 /// jugar en solitario (lleva a elegir nivel) o con amigos (lleva a crear
@@ -37,6 +38,7 @@ class InicioScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Brilliant'),
         actions: [
+          const ControlSonidoBoton(),
           PopupMenuButton<_OpcionDeCuenta>(
             icon: const Icon(Icons.account_circle_outlined),
             tooltip: 'Opciones de la cuenta',
