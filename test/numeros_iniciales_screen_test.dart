@@ -102,6 +102,23 @@ void main() {
     });
   });
 
+  group('NumerosInicialesScreen: adaptación a pantallas chicas', () {
+    testWidgets('no genera overflow en un ancho reducido, incluido el diálogo "Elige un número"', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(320, 700);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(const MaterialApp(home: NumerosInicialesScreen()));
+      expect(tester.takeException(), isNull);
+
+      await elegirEnCasillaEstrella(tester, 0, 1);
+      expect(tester.takeException(), isNull);
+    });
+  });
+
   group('NumerosInicialesScreen: configuración de nivel parametrizada', () {
     // Nivel sintético de 2x2 con 2 estrellas, exclusivo de esta prueba: no
     // representa ningún mapa oficial, solo prueba que la pantalla ya no

@@ -143,33 +143,42 @@ class _FichaZona extends StatelessWidget {
     final colorSimbolo =
         ThemeData.estimateBrightnessForColor(color) == Brightness.dark ? Colors.white : Colors.black87;
 
-    return Tooltip(
-      message: '$nombre · ${zona.tipo.descripcion}',
-      child: Semantics(
-        label: '$nombre. Puntos: ${[for (var i = 0; i < 3; i++) _descripcionDe(i)].join(', ')}',
-        excludeSemantics: true,
-        child: Container(
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            color: colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 32,
-                height: 28,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(6)),
-                child: Text(
-                  simboloDeRegla(zona.tipo),
-                  style: TextStyle(color: colorSimbolo, fontWeight: FontWeight.bold, fontSize: 15),
+    final mensaje = '$nombre · ${zona.tipo.descripcion}';
+    // El Tooltip sirve a quien usa mouse (se activa al pasar por encima);
+    // en celular no es descubrible, así que el GestureDetector de afuera
+    // agrega el mismo texto en un SnackBar al tocar. Va por fuera del
+    // Semantics(excludeSemantics: true) para no esconderle a los lectores
+    // de pantalla que la ficha es tocable.
+    return GestureDetector(
+      onTap: () => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mensaje))),
+      child: Tooltip(
+        message: mensaje,
+        child: Semantics(
+          label: '$nombre. Puntos: ${[for (var i = 0; i < 3; i++) _descripcionDe(i)].join(', ')}',
+          excludeSemantics: true,
+          child: Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 32,
+                  height: 28,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(6)),
+                  child: Text(
+                    simboloDeRegla(zona.tipo),
+                    style: TextStyle(color: colorSimbolo, fontWeight: FontWeight.bold, fontSize: 15),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 4),
-              for (var i = 0; i < 3; i++) _Escalon(puntos: puntos[i], estado: estados[i]),
-            ],
+                const SizedBox(width: 4),
+                for (var i = 0; i < 3; i++) _Escalon(puntos: puntos[i], estado: estados[i]),
+              ],
+            ),
           ),
         ),
       ),

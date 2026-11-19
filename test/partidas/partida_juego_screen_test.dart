@@ -303,6 +303,21 @@ void main() {
       expect(canal.enviados, isEmpty);
     });
 
+    testWidgets('tocar directo una casilla-ancla manda elegir el dado y tocarla, sin pasos previos', (
+      tester,
+    ) async {
+      // Sin numeroAnclaElegido ni ancla: todavía no se tocó ningún dado.
+      await abrir(tester, _estadoJson(dados: [1, 3]));
+
+      // (0,2) = 1: un solo toque alcanza para anclar.
+      await _tocarCasilla(tester, 0, 2);
+
+      expect(canal.enviados, [
+        {'tipo': 'seleccionar_dado', 'valor': 1},
+        {'tipo': 'tocar_casilla', 'fila': 0, 'columna': 2},
+      ]);
+    });
+
     testWidgets('pasar la ronda pide confirmacion antes de mandarlo', (tester) async {
       await abrir(tester, _estadoJson(dados: [1, 3]));
 
@@ -471,6 +486,35 @@ void main() {
 
     testWidgets('no genera overflow en un ancho reducido', (tester) async {
       tester.view.physicalSize = const Size(320, 700);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await abrir(tester, _estadoJson(dados: [3, 4]));
+
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('el diálogo de reglas tampoco genera overflow en un ancho reducido', (tester) async {
+      tester.view.physicalSize = const Size(320, 700);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await abrir(tester, _estadoJson(dados: [3, 4]));
+
+      await tester.tap(find.byTooltip('Reglas de las zonas'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Reglas de las zonas'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('en una pantalla chica (iPhone SE) no genera overflow, ni con letra normal', (tester) async {
+      // 320x568 (iPhone SE) ya desbordaba con el tamaño de letra normal del
+      // sistema: el contenido fijo de arriba (ronda, jugadores, instrucción,
+      // dados) dejaba muy poco alto para el tablero y la hoja de puntos.
+      tester.view.physicalSize = const Size(320, 568);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);

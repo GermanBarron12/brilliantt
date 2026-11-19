@@ -33,7 +33,8 @@ import 'tabla_puntos_zonas.dart';
 /// Quien se rinde deja de jugar y ya no puede ganar, pero puede quedarse
 /// mirando la partida hasta que termine.
 class PartidaJuegoScreen extends StatefulWidget {
-  const PartidaJuegoScreen({super.key, required this.socket, required this.usuarioId});
+  const PartidaJuegoScreen(
+      {super.key, required this.socket, required this.usuarioId});
 
   final PartidaSocket socket;
   final String usuarioId;
@@ -105,7 +106,8 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
       }
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) => PartidaFinScreen(estado: estado, usuarioId: widget.usuarioId),
+          builder: (_) =>
+              PartidaFinScreen(estado: estado, usuarioId: widget.usuarioId),
         ),
       );
       return;
@@ -125,7 +127,8 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
     setState(() => _estado = estado);
   }
 
-  void _avisarPuntuacion(EstadoPartidaEnVivo estado, EventoPuntuacionRemoto evento) {
+  void _avisarPuntuacion(
+      EstadoPartidaEnVivo estado, EventoPuntuacionRemoto evento) {
     if (evento.jugadorId == widget.usuarioId) {
       context.read<SonidoServicio>().reproducir(EfectoSonido.zonaCompletada);
       mostrarNotificacionPuntuacion(
@@ -153,37 +156,45 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
 
   /// Avisa de cada jugador (que no sea uno mismo) que pasó a estar rendido
   /// entre [anterior] y [nuevo].
-  void _avisarRendiciones(EstadoPartidaEnVivo anterior, EstadoPartidaEnVivo nuevo) {
+  void _avisarRendiciones(
+      EstadoPartidaEnVivo anterior, EstadoPartidaEnVivo nuevo) {
     final yaRendidos = {
       for (final p in anterior.participantes)
         if (p.estado == EstadoParticipante.rendido) p.usuarioId,
     };
     for (final p in nuevo.participantes) {
-      final seRindioAhora = p.estado == EstadoParticipante.rendido && !yaRendidos.contains(p.usuarioId);
+      final seRindioAhora = p.estado == EstadoParticipante.rendido &&
+          !yaRendidos.contains(p.usuarioId);
       if (seRindioAhora && p.usuarioId != widget.usuarioId) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${p.nombreUsuario} se rindió.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('${p.nombreUsuario} se rindió.')));
       }
     }
   }
 
   bool _estaRendido(EstadoPartidaEnVivo estado, String usuarioId) {
-    return estado.participantes.any((p) => p.usuarioId == usuarioId && p.estado == EstadoParticipante.rendido);
+    return estado.participantes.any((p) =>
+        p.usuarioId == usuarioId && p.estado == EstadoParticipante.rendido);
   }
 
   void _alRecibirError(PartidaException error) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(error.message)));
   }
 
   String _nombreDe(EstadoPartidaEnVivo estado, String usuarioId) {
-    return estado.participantes.firstWhere((p) => p.usuarioId == usuarioId).nombreUsuario;
+    return estado.participantes
+        .firstWhere((p) => p.usuarioId == usuarioId)
+        .nombreUsuario;
   }
 
   /// Las casillas de zonas que ya completó algún otro jugador, con el
   /// mensaje a mostrar al pasar el mouse (quién o quiénes la completaron).
   /// Sirve de pista para que convenga ir a otra zona en vez de esta: no
   /// deshabilita nada, la zona sigue siendo jugable.
-  Map<PosicionCasilla, String> _casillasAtenuadas(EstadoPartidaEnVivo estado, ConfiguracionNivel nivel) {
+  Map<PosicionCasilla, String> _casillasAtenuadas(
+      EstadoPartidaEnVivo estado, ConfiguracionNivel nivel) {
     final nombresPorZona = <String, List<String>>{};
     for (final evento in estado.eventosPuntuacion) {
       if (evento.jugadorId == widget.usuarioId) continue;
@@ -228,12 +239,16 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
     final meTocaTirar = estado.jugadorQueTira == widget.usuarioId;
     final yaActue = estado.jugadoresQueYaActuaron.contains(widget.usuarioId);
     final meRendi = _estaRendido(estado, widget.usuarioId);
-    final puedoTirar = _conectado && !meRendi && meTocaTirar && estado.dados == null;
-    final puedoActuar = _conectado && !meRendi && estado.dados != null && !yaActue;
+    final puedoTirar =
+        _conectado && !meRendi && meTocaTirar && estado.dados == null;
+    final puedoActuar =
+        _conectado && !meRendi && estado.dados != null && !yaActue;
 
     final observado = _jugadorObservado;
-    final mirandoElMio = observado == null || !estado.tableros.containsKey(observado);
-    final tableroVisible = mirandoElMio ? miTablero : estado.tableros[observado]!;
+    final mirandoElMio =
+        observado == null || !estado.tableros.containsKey(observado);
+    final tableroVisible =
+        mirandoElMio ? miTablero : estado.tableros[observado]!;
 
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
@@ -265,11 +280,14 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
                   ? const {}
                   : juego.ancla != null
                       ? juego.casillasValidas.toSet()
-                      : juego.casillasAnclaPosibles,
+                      : juego.numeroAnclaElegido != null
+                          ? juego.casillasAnclaPosibles
+                          : juego.casillasAnclaDirectas.keys.toSet(),
               repetidas: const {},
               atenuadas: _casillasAtenuadas(estado, nivel),
               seleccionada: tableroVisible.ancla,
-              onTap: (posicion) => _tocarCasilla(juego, puedoActuar && mirandoElMio, posicion),
+              onTap: (posicion) =>
+                  _tocarCasilla(juego, puedoActuar && mirandoElMio, posicion),
             ),
           ),
         ),
@@ -296,90 +314,128 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            if (!_conectado) ...[
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                decoration: BoxDecoration(
-                  color: colorScheme.errorContainer,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: colorScheme.onErrorContainer),
+        child: LayoutBuilder(
+          builder: (context, restricciones) {
+            // Mismo corte que antes decidía solo cómo repartir tablero y
+            // hoja de puntos: en ancho angosto (celular en vertical), todo
+            // el contenido fijo de arriba (ronda, jugadores, instrucción,
+            // dados) puede dejar muy poco alto libre para el tablero en
+            // pantallas chicas o con letra grande del sistema — ahí, en vez
+            // de forzar al tablero a encogerse hasta desbordar la pantalla
+            // (la franja amarilla y negra de Flutter por el overflow),
+            // toda la columna pasa a poder desplazarse. En ancho ancho
+            // (tablet o celular apaisado) se mantiene el reparto fijo de
+            // siempre, con el tablero y las hojas de puntos compartiendo el
+            // alto disponible.
+            final anchoAmplio = restricciones.maxWidth >= 640;
+
+            final columna = Column(
+              children: [
+                if (!_conectado) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: colorScheme.errorContainer,
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Reconectando...',
-                      style: textTheme.bodyMedium?.copyWith(color: colorScheme.onErrorContainer),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: colorScheme.onErrorContainer),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Reconectando...',
+                          style: textTheme.bodyMedium
+                              ?.copyWith(color: colorScheme.onErrorContainer),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-            ],
-            Text(
-              'Ronda ${estado.numeroRonda} · Se juega a ${puntajeMinimoMultijugador(estado.participantes.length)} puntos',
-              style: textTheme.labelLarge?.copyWith(color: colorScheme.onSurfaceVariant),
-            ),
-            const SizedBox(height: 8),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  for (final participante in _porPuntaje(estado))
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: _PuntajeJugador(
-                        posicion: _posicionDe(estado, participante),
-                        nombre: participante.usuarioId == widget.usuarioId ? 'Tú' : participante.nombreUsuario,
-                        puntaje: estado.tableros[participante.usuarioId]!.puntaje,
-                        tiraLosDados: participante.usuarioId == estado.jugadorQueTira,
-                        yaActuo: estado.jugadoresQueYaActuaron.contains(participante.usuarioId),
-                        desconectado: participante.estado == EstadoParticipante.desconectado,
-                        rendido: participante.estado == EstadoParticipante.rendido,
-                        seleccionado: mirandoElMio
-                            ? participante.usuarioId == widget.usuarioId
-                            : participante.usuarioId == observado,
-                        onTap: () => setState(() {
-                          _jugadorObservado = participante.usuarioId == widget.usuarioId ? null : participante.usuarioId;
-                        }),
-                      ),
-                    ),
+                  ),
+                  const SizedBox(height: 12),
                 ],
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              mirandoElMio
-                  ? (meRendi ? 'Te rendiste. Puedes seguir mirando la partida.' : _instruccion(estado, juego))
-                  : 'Estás viendo el tablero de ${_nombreDe(estado, observado)}. Toca "Tú" para volver al tuyo.',
-              textAlign: TextAlign.center,
-              style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
-            ),
-            const SizedBox(height: 12),
-            ParDadosWidget(
-              dados: estado.dados,
-              claveDeTirada: estado.numeroRonda,
-              numeroSeleccionado: miTablero.numeroAnclaElegido,
-              seleccionHabilitada: puedoActuar && mirandoElMio && miTablero.ancla == null,
-              onSeleccionar: puedoActuar && mirandoElMio ? widget.socket.seleccionarDado : null,
-            ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  // Con ancho de sobra, la hoja de puntos va a los costados
-                  // del tablero, cada zona del lado en que está; si no, en
-                  // una fila debajo.
-                  if (constraints.maxWidth >= 640) {
-                    return Row(
+                Text(
+                  'Ronda ${estado.numeroRonda} · Se juega a ${puntajeMinimoMultijugador(estado.participantes.length)} puntos',
+                  style: textTheme.labelLarge
+                      ?.copyWith(color: colorScheme.onSurfaceVariant),
+                ),
+                const SizedBox(height: 8),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      for (final participante in _porPuntaje(estado))
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: _PuntajeJugador(
+                            posicion: _posicionDe(estado, participante),
+                            nombre: participante.usuarioId == widget.usuarioId
+                                ? 'Tú'
+                                : participante.nombreUsuario,
+                            puntaje: estado
+                                .tableros[participante.usuarioId]!.puntaje,
+                            tiraLosDados:
+                                participante.usuarioId == estado.jugadorQueTira,
+                            yaActuo: estado.jugadoresQueYaActuaron
+                                .contains(participante.usuarioId),
+                            desconectado: participante.estado ==
+                                EstadoParticipante.desconectado,
+                            rendido: participante.estado ==
+                                EstadoParticipante.rendido,
+                            seleccionado: mirandoElMio
+                                ? participante.usuarioId == widget.usuarioId
+                                : participante.usuarioId == observado,
+                            onTap: () => setState(() {
+                              _jugadorObservado =
+                                  participante.usuarioId == widget.usuarioId
+                                      ? null
+                                      : participante.usuarioId;
+                            }),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  mirandoElMio
+                      ? (meRendi
+                          ? 'Te rendiste. Puedes seguir mirando la partida.'
+                          : _instruccion(estado, juego))
+                      : 'Estás viendo el tablero de ${_nombreDe(estado, observado)}. Toca "Tú" para volver al tuyo.',
+                  textAlign: TextAlign.center,
+                  style: textTheme.bodyMedium
+                      ?.copyWith(color: colorScheme.onSurfaceVariant),
+                ),
+                const SizedBox(height: 12),
+                ParDadosWidget(
+                  dados: estado.dados,
+                  claveDeTirada: estado.numeroRonda,
+                  numeroSeleccionado: miTablero.numeroAnclaElegido,
+                  seleccionHabilitada: puedoActuar && mirandoElMio,
+                  onSeleccionar: puedoActuar && mirandoElMio
+                      ? widget.socket.seleccionarDado
+                      : null,
+                ),
+                const SizedBox(height: 12),
+                // Con ancho de sobra, la hoja de puntos va a los costados del
+                // tablero, cada zona del lado en que está, y el tablero
+                // comparte el alto disponible con el resto de la pantalla
+                // (como siempre). Sin ancho de sobra, la hoja va en una fila
+                // debajo del tablero, que ahora se dimensiona por su ancho
+                // (como un cuadrado) en vez de por el alto que sobre: así,
+                // si no entra todo, la pantalla completa se puede desplazar
+                // en vez de desbordar.
+                if (anchoAmplio)
+                  Expanded(
+                    child: Row(
                       children: [
                         hojaDePuntos(costados.izquierda, vertical: true),
                         const SizedBox(width: 8),
@@ -387,40 +443,46 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
                         const SizedBox(width: 8),
                         hojaDePuntos(costados.derecha, vertical: true),
                       ],
-                    );
-                  }
-                  return Column(
-                    children: [
-                      Expanded(child: tablero),
-                      const SizedBox(height: 8),
-                      hojaDePuntos([...costados.izquierda, ...costados.derecha], vertical: false),
-                    ],
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 16),
-            Wrap(
-              alignment: WrapAlignment.center,
-              spacing: 12,
-              runSpacing: 8,
-              children: [
-                ElevatedButton(
-                  onPressed: puedoTirar
-                      ? () {
-                          context.read<SonidoServicio>().reproducir(EfectoSonido.tirarDados);
-                          widget.socket.tirarDados();
-                        }
-                      : null,
-                  child: const Text('Tirar dados'),
-                ),
-                OutlinedButton(
-                  onPressed: puedoActuar ? () => _confirmarPasarRonda(context, juego) : null,
-                  child: const Text('Pasar ronda'),
+                    ),
+                  )
+                else ...[
+                  tablero,
+                  const SizedBox(height: 8),
+                  hojaDePuntos([...costados.izquierda, ...costados.derecha],
+                      vertical: false),
+                ],
+                const SizedBox(height: 16),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 12,
+                  runSpacing: 8,
+                  children: [
+                    ElevatedButton(
+                      onPressed: puedoTirar
+                          ? () {
+                              context
+                                  .read<SonidoServicio>()
+                                  .reproducir(EfectoSonido.tirarDados);
+                              widget.socket.tirarDados();
+                            }
+                          : null,
+                      child: const Text('Tirar dados'),
+                    ),
+                    OutlinedButton(
+                      onPressed: puedoActuar
+                          ? () => _confirmarPasarRonda(context, juego)
+                          : null,
+                      child: const Text('Pasar ronda'),
+                    ),
+                  ],
                 ),
               ],
-            ),
-          ],
+            );
+
+            return anchoAmplio
+                ? columna
+                : SingleChildScrollView(child: columna);
+          },
         ),
       ),
     );
@@ -429,7 +491,9 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
   /// Los participantes de mayor a menor puntaje, con quienes se rindieron
   /// al final. A igual puntaje se mantiene el orden de turno.
   List<Participante> _porPuntaje(EstadoPartidaEnVivo estado) {
-    int clave(Participante p) => p.estado == EstadoParticipante.rendido ? -1 : estado.tableros[p.usuarioId]!.puntaje;
+    int clave(Participante p) => p.estado == EstadoParticipante.rendido
+        ? -1
+        : estado.tableros[p.usuarioId]!.puntaje;
     final orden = [...estado.participantes];
     // List.sort no garantiza conservar el orden entre iguales: se desempata
     // a mano por orden de turno.
@@ -447,16 +511,37 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
     final puntaje = estado.tableros[participante.usuarioId]!.puntaje;
     return 1 +
         estado.participantes
-            .where((p) => p.estado != EstadoParticipante.rendido && estado.tableros[p.usuarioId]!.puntaje > puntaje)
+            .where((p) =>
+                p.estado != EstadoParticipante.rendido &&
+                estado.tableros[p.usuarioId]!.puntaje > puntaje)
             .length;
   }
 
-  void _tocarCasilla(JuegoEstado juego, bool puedoActuar, PosicionCasilla posicion) {
+  void _tocarCasilla(
+      JuegoEstado juego, bool puedoActuar, PosicionCasilla posicion) {
     if (!puedoActuar) return;
-    final esDestino = juego.ancla != null && juego.casillasValidas.contains(posicion);
+    final esDestino =
+        juego.ancla != null && juego.casillasValidas.contains(posicion);
     if (esDestino || juego.casillasAnclaPosibles.contains(posicion)) {
-      if (esDestino) context.read<SonidoServicio>().reproducir(EfectoSonido.colocarNumero);
+      if (esDestino) {
+        context.read<SonidoServicio>().reproducir(EfectoSonido.colocarNumero);
+      }
       widget.socket.tocarCasilla(posicion.fila, posicion.columna);
+      return;
+    }
+
+    // Tap directo: todavía no hay ancla ni dado elegido, pero la casilla ya
+    // sirve de ancla para alguno de los dos dados (ver
+    // JuegoEstado.casillasAnclaDirectas). Se manda "elegir dado" y "tocar
+    // casilla" en sucesión, en el mismo toque: un solo WebSocket garantiza
+    // que el servidor los procese en ese orden, así que reproduce
+    // exactamente el mismo protocolo que ya existe hoy en dos pasos.
+    if (juego.ancla == null && juego.numeroAnclaElegido == null) {
+      final numeroInferido = juego.casillasAnclaDirectas[posicion];
+      if (numeroInferido != null) {
+        widget.socket.seleccionarDado(numeroInferido);
+        widget.socket.tocarCasilla(posicion.fila, posicion.columna);
+      }
     }
   }
 
@@ -466,7 +551,8 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
       if (estado.jugadorQueTira == widget.usuarioId) {
         return 'Te toca tirar los dados para todos.';
       }
-      final quienTira = estado.participantes.firstWhere((p) => p.usuarioId == estado.jugadorQueTira);
+      final quienTira = estado.participantes
+          .firstWhere((p) => p.usuarioId == estado.jugadorQueTira);
       if (quienTira.estado == EstadoParticipante.desconectado) {
         return '${quienTira.nombreUsuario} se desconectó. Si no vuelve, tira el siguiente jugador.';
       }
@@ -476,7 +562,8 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
     if (estado.jugadoresQueYaActuaron.contains(widget.usuarioId)) {
       final faltan = [
         for (final p in estado.participantes)
-          if (p.estado != EstadoParticipante.rendido && !estado.jugadoresQueYaActuaron.contains(p.usuarioId))
+          if (p.estado != EstadoParticipante.rendido &&
+              !estado.jugadoresQueYaActuaron.contains(p.usuarioId))
             p.nombreUsuario,
       ];
       return 'Ya jugaste esta ronda. Esperando a ${faltan.join(', ')}.';
@@ -490,10 +577,12 @@ class _PartidaJuegoScreenState extends State<PartidaJuegoScreen> {
     if (juego.numeroAnclaElegido != null) {
       return 'Toca una casilla con el ${juego.numeroAnclaElegido} para usarla de ancla.';
     }
-    return 'Dados: ${dados[0]} y ${dados[1]}. Toca uno de los dados para elegir con cuál número anclar.';
+    return 'Dados: ${dados[0]} y ${dados[1]}. Toca una casilla iluminada para anclar '
+        '(o toca un dado si querés elegir con cuál número primero).';
   }
 
-  Future<void> _confirmarPasarRonda(BuildContext context, JuegoEstado juego) async {
+  Future<void> _confirmarPasarRonda(
+      BuildContext context, JuegoEstado juego) async {
     final hayJugada = !juego.puedeVolverATirar;
     final confirmar = await showDialog<bool>(
       context: context,
@@ -609,10 +698,13 @@ class _PuntajeJugador extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final colorTexto = seleccionado ? colorScheme.onPrimaryContainer : colorScheme.onSurface;
+    final colorTexto =
+        seleccionado ? colorScheme.onPrimaryContainer : colorScheme.onSurface;
 
     return Material(
-      color: seleccionado ? colorScheme.primaryContainer : colorScheme.surfaceContainerHighest,
+      color: seleccionado
+          ? colorScheme.primaryContainer
+          : colorScheme.surfaceContainerHighest,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
@@ -627,7 +719,9 @@ class _PuntajeJugador extends StatelessWidget {
                 if (posicion != null) ...[
                   Tooltip(
                     message: 'Puesto $posicion',
-                    child: Text('$posicion.º', style: textTheme.titleMedium?.copyWith(color: colorTexto)),
+                    child: Text('$posicion.º',
+                        style:
+                            textTheme.titleMedium?.copyWith(color: colorTexto)),
                   ),
                   const SizedBox(width: 8),
                 ],
@@ -635,28 +729,40 @@ class _PuntajeJugador extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(nombre, style: textTheme.labelMedium?.copyWith(color: colorTexto)),
-                    Text('$puntaje pts', style: textTheme.titleMedium?.copyWith(color: colorTexto)),
+                    Text(nombre,
+                        style:
+                            textTheme.labelMedium?.copyWith(color: colorTexto)),
+                    Text('$puntaje pts',
+                        style:
+                            textTheme.titleMedium?.copyWith(color: colorTexto)),
                   ],
                 ),
                 if (tiraLosDados) ...[
                   const SizedBox(width: 8),
-                  Tooltip(message: 'Tira los dados', child: Icon(Icons.casino, size: 18, color: colorTexto)),
+                  Tooltip(
+                      message: 'Tira los dados',
+                      child: Icon(Icons.casino, size: 18, color: colorTexto)),
                 ],
                 if (yaActuo) ...[
                   const SizedBox(width: 8),
                   Tooltip(
                     message: 'Ya jugó esta ronda',
-                    child: Icon(Icons.check_circle, size: 18, color: colorTexto),
+                    child:
+                        Icon(Icons.check_circle, size: 18, color: colorTexto),
                   ),
                 ],
                 if (rendido) ...[
                   const SizedBox(width: 8),
-                  Tooltip(message: 'Se rindió', child: Icon(Icons.flag, size: 18, color: colorTexto)),
+                  Tooltip(
+                      message: 'Se rindió',
+                      child: Icon(Icons.flag, size: 18, color: colorTexto)),
                 ],
                 if (desconectado) ...[
                   const SizedBox(width: 8),
-                  Tooltip(message: 'Desconectado', child: Icon(Icons.cloud_off, size: 18, color: colorScheme.error)),
+                  Tooltip(
+                      message: 'Desconectado',
+                      child: Icon(Icons.cloud_off,
+                          size: 18, color: colorScheme.error)),
                 ],
               ],
             ),

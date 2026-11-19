@@ -137,20 +137,35 @@ class JuegoEstado {
   /// con tener el número; tiene que poder jugarse desde ahí.
   Set<PosicionCasilla> get casillasAnclaPosibles {
     final numero = numeroAnclaElegido;
-    final d = dados;
-    if (numero == null || d == null || (numero != d[0] && numero != d[1])) return const {};
+    if (numero == null) return const {};
+    return {for (final entrada in casillasAnclaDirectas.entries) if (entrada.value == numero) entrada.key};
+  }
 
-    final numeroOpuesto = numero == d[0] ? d[1] : d[0];
-    final posibles = <PosicionCasilla>{};
-    for (var fila = 0; fila < tablero.length; fila++) {
-      for (var columna = 0; columna < tablero[fila].length; columna++) {
-        final posicion = PosicionCasilla(fila, columna);
-        if (valorEn(posicion) == numero && _casillasValidasDesde(posicion, numeroOpuesto).isNotEmpty) {
-          posibles.add(posicion);
+  /// Para cada número único entre los dos dados, las casillas que podrían
+  /// servir de ancla para ESE número (con destino válido), sin necesitar
+  /// que el jugador lo haya elegido explícitamente todavía (a diferencia de
+  /// [casillasAnclaPosibles], que depende de [numeroAnclaElegido]). Permite
+  /// tocar directo una casilla del tablero para anclar: el número con el
+  /// que se ancla se infiere del propio valor de la casilla tocada, sin
+  /// pasar antes por elegir el dado.
+  Map<PosicionCasilla, int> get casillasAnclaDirectas {
+    final d = dados;
+    if (d == null) return const {};
+
+    final numeros = {d[0], d[1]}; // Set: en dobles queda un solo elemento.
+    final resultado = <PosicionCasilla, int>{};
+    for (final numero in numeros) {
+      final numeroOpuesto = numero == d[0] ? d[1] : d[0];
+      for (var fila = 0; fila < tablero.length; fila++) {
+        for (var columna = 0; columna < tablero[fila].length; columna++) {
+          final posicion = PosicionCasilla(fila, columna);
+          if (valorEn(posicion) == numero && _casillasValidasDesde(posicion, numeroOpuesto).isNotEmpty) {
+            resultado[posicion] = numero;
+          }
         }
       }
     }
-    return posibles;
+    return resultado;
   }
 
   /// Todas las casillas de destino posibles con los dados actuales, sin

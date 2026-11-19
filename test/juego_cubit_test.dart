@@ -158,6 +158,41 @@ void main() {
       });
     });
 
+    group('JuegoCubit: tocar directo una casilla-ancla (sin elegir dado antes)', () {
+      test('tocar directo una casilla con el valor de un dado la ancla e infiere el numero', () {
+        final cubit = JuegoCubit(tableroInicial, random: _DadosFijos([1, 6]));
+        cubit.tirarDados();
+        cubit.tocarCasilla(const PosicionCasilla(0, 2)); // tiene el 1, sin elegir dado antes
+
+        expect(cubit.state.ancla, const PosicionCasilla(0, 2));
+        expect(cubit.state.numeroAnclaElegido, 1);
+        expect(cubit.state.numeroAColocar, 6);
+        cubit.close();
+      });
+
+      test('con un dado ya elegido explícitamente, tocar una casilla del otro dado no hace nada', () {
+        final cubit = JuegoCubit(tableroInicial, random: _DadosFijos([1, 6]));
+        cubit.tirarDados();
+        cubit.seleccionarDado(1); // elige explícitamente el 1
+        cubit.tocarCasilla(const PosicionCasilla(6, 4)); // tiene el 6, el otro dado
+
+        expect(cubit.state.ancla, isNull);
+        expect(cubit.state.numeroAnclaElegido, 1);
+        cubit.close();
+      });
+
+      test('con dados dobles, tocar directo la casilla ancla con cualquiera de los dos', () {
+        final cubit = JuegoCubit(tableroInicial, random: _DadosFijos([1, 1]));
+        cubit.tirarDados();
+        cubit.tocarCasilla(const PosicionCasilla(0, 2)); // tiene el 1 (único valor posible)
+
+        expect(cubit.state.ancla, const PosicionCasilla(0, 2));
+        expect(cubit.state.numeroAnclaElegido, 1);
+        expect(cubit.state.numeroAColocar, 1);
+        cubit.close();
+      });
+    });
+
     group('JuegoCubit: destinos válidos y colocación', () {
       test('las casillas válidas son vecinas vacías que cumplen la regla de su zona', () {
         final cubit = JuegoCubit(tableroInicial, random: _DadosFijos([1, 6]));

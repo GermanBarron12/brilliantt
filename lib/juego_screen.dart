@@ -54,7 +54,9 @@ class _JuegoScreenState extends State<JuegoScreen> {
             actual.eventosPuntuacion.length != previo.eventosPuntuacion.length,
         listener: (context, estado) {
           final sonido = context.read<SonidoServicio>();
-          for (var i = _eventosPuntuacionMostrados; i < estado.eventosPuntuacion.length; i++) {
+          for (var i = _eventosPuntuacionMostrados;
+              i < estado.eventosPuntuacion.length;
+              i++) {
             mostrarNotificacionPuntuacion(context, estado.eventosPuntuacion[i]);
             sonido.reproducir(EfectoSonido.zonaCompletada);
           }
@@ -66,81 +68,108 @@ class _JuegoScreenState extends State<JuegoScreen> {
 
           final colorScheme = Theme.of(context).colorScheme;
           final textTheme = Theme.of(context).textTheme;
+
+          final tablero = Center(
+            child: AspectRatio(
+              aspectRatio: 1,
+              child: Card(
+                clipBehavior: Clip.antiAlias,
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: TableroWidget(
+                    layout: nivel.layout,
+                    valores: estado.tablero,
+                    estrellas: nivel.casillasEstrella.toSet(),
+                    resaltadas: estado.ancla != null
+                        ? estado.casillasValidas.toSet()
+                        : estado.numeroAnclaElegido != null
+                            ? estado.casillasAnclaPosibles
+                            : estado.casillasAnclaDirectas.keys.toSet(),
+                    repetidas: const {},
+                    seleccionada: estado.ancla,
+                    onTap: (posicion) =>
+                        _tocarCasilla(sonido, cubit, estado, posicion),
+                  ),
+                ),
+              ),
+            ),
+          );
+
           return Padding(
             padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    'Puntaje: ${estado.puntaje}',
-                    style: textTheme.titleLarge?.copyWith(color: colorScheme.onPrimaryContainer),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  _instruccion(estado),
-                  textAlign: TextAlign.center,
-                  style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
-                ),
-                const SizedBox(height: 12),
-                ParDadosWidget(
-                  dados: estado.dados,
-                  numeroSeleccionado: estado.numeroAnclaElegido,
-                  seleccionHabilitada: estado.dados != null && estado.ancla == null,
-                  onSeleccionar: cubit.seleccionarDado,
-                ),
-                const SizedBox(height: 12),
-                Expanded(
-                  child: Center(
-                    child: AspectRatio(
-                      aspectRatio: 1,
-                      child: Card(
-                        clipBehavior: Clip.antiAlias,
-                        child: Padding(
-                          padding: const EdgeInsets.all(4),
-                          child: TableroWidget(
-                            layout: nivel.layout,
-                            valores: estado.tablero,
-                            estrellas: nivel.casillasEstrella.toSet(),
-                            resaltadas: estado.ancla != null
-                                ? estado.casillasValidas.toSet()
-                                : estado.casillasAnclaPosibles,
-                            repetidas: const {},
-                            seleccionada: estado.ancla,
-                            onTap: (posicion) => _tocarCasilla(sonido, cubit, estado, posicion),
-                          ),
-                        ),
+            child: LayoutBuilder(
+              builder: (context, restricciones) {
+                // Con ancho de sobra (escritorio/tablet), el tablero
+                // comparte el alto disponible con el resto de la pantalla,
+                // como siempre. En ancho angosto (celular en vertical), el
+                // contenido fijo de arriba (puntaje, instrucción, dados)
+                // puede dejar muy poco alto libre en pantallas chicas o con
+                // letra grande del sistema: ahí el tablero se dimensiona
+                // por su ancho (como un cuadrado) y toda la columna puede
+                // desplazarse en vez de desbordar (la franja amarilla y
+                // negra de Flutter).
+                final anchoAmplio = restricciones.maxWidth >= 640;
+
+                final columna = Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        'Puntaje: ${estado.puntaje}',
+                        style: textTheme.titleLarge
+                            ?.copyWith(color: colorScheme.onPrimaryContainer),
                       ),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Wrap(
-                  alignment: WrapAlignment.center,
-                  spacing: 12,
-                  runSpacing: 8,
-                  children: [
-                    ElevatedButton(
-                      onPressed: estado.puedeVolverATirar
-                          ? () {
-                              sonido.reproducir(EfectoSonido.tirarDados);
-                              cubit.tirarDados();
-                            }
-                          : null,
-                      child: const Text('Tirar dados'),
+                    const SizedBox(height: 8),
+                    Text(
+                      _instruccion(estado),
+                      textAlign: TextAlign.center,
+                      style: textTheme.bodyMedium
+                          ?.copyWith(color: colorScheme.onSurfaceVariant),
                     ),
-                    OutlinedButton(
-                      onPressed: () => _confirmarSaltarTurno(context, sonido, cubit, estado),
-                      child: const Text('Saltar turno'),
+                    const SizedBox(height: 12),
+                    ParDadosWidget(
+                      dados: estado.dados,
+                      numeroSeleccionado: estado.numeroAnclaElegido,
+                      seleccionHabilitada: estado.dados != null,
+                      onSeleccionar: cubit.seleccionarDado,
+                    ),
+                    const SizedBox(height: 12),
+                    if (anchoAmplio) Expanded(child: tablero) else tablero,
+                    const SizedBox(height: 16),
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 12,
+                      runSpacing: 8,
+                      children: [
+                        ElevatedButton(
+                          onPressed: estado.puedeVolverATirar
+                              ? () {
+                                  sonido.reproducir(EfectoSonido.tirarDados);
+                                  cubit.tirarDados();
+                                }
+                              : null,
+                          child: const Text('Tirar dados'),
+                        ),
+                        OutlinedButton(
+                          onPressed: () => _confirmarSaltarTurno(
+                              context, sonido, cubit, estado),
+                          child: const Text('Saltar turno'),
+                        ),
+                      ],
                     ),
                   ],
-                ),
-              ],
+                );
+
+                return anchoAmplio
+                    ? columna
+                    : SingleChildScrollView(child: columna);
+              },
             ),
           );
         },
@@ -159,12 +188,14 @@ class _JuegoScreenState extends State<JuegoScreen> {
     if (estado.numeroAnclaElegido != null) {
       return 'Toca una casilla con el ${estado.numeroAnclaElegido} para usarla de ancla.';
     }
-    return 'Dados: ${dados[0]} y ${dados[1]}. Toca uno de los dados para elegir con cuál número anclar.';
+    return 'Dados: ${dados[0]} y ${dados[1]}. Toca una casilla iluminada para anclar '
+        '(o toca un dado si querés elegir con cuál número primero).';
   }
 
   /// Reproduce el sonido de colocar solo cuando el toque realmente coloca
   /// un número (no cuando solo selecciona el ancla).
-  void _tocarCasilla(SonidoServicio sonido, JuegoCubit cubit, JuegoEstado estado, PosicionCasilla posicion) {
+  void _tocarCasilla(SonidoServicio sonido, JuegoCubit cubit,
+      JuegoEstado estado, PosicionCasilla posicion) {
     if (estado.ancla != null && estado.casillasValidas.contains(posicion)) {
       sonido.reproducir(EfectoSonido.colocarNumero);
     }

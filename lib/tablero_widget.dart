@@ -45,7 +45,7 @@ class TableroWidget extends StatelessWidget {
             child: Row(
               children: [
                 for (var columna = 0; columna < layout[fila].length; columna++)
-                  Expanded(child: _casillaEn(PosicionCasilla(fila, columna))),
+                  Expanded(child: _casillaEn(context, PosicionCasilla(fila, columna))),
               ],
             ),
           ),
@@ -53,7 +53,8 @@ class TableroWidget extends StatelessWidget {
     );
   }
 
-  Widget _casillaEn(PosicionCasilla posicion) {
+  Widget _casillaEn(BuildContext context, PosicionCasilla posicion) {
+    final mensajeAtenuada = atenuadas[posicion];
     return _Casilla(
       color: coloresDeZona[layout[posicion.fila][posicion.columna]]!,
       valor: valores[posicion.fila][posicion.columna],
@@ -61,8 +62,16 @@ class TableroWidget extends StatelessWidget {
       resaltada: resaltadas.contains(posicion),
       seleccionada: seleccionada == posicion,
       repetida: repetidas.contains(posicion),
-      mensajeAtenuada: atenuadas[posicion],
-      onTap: () => onTap(posicion),
+      mensajeAtenuada: mensajeAtenuada,
+      onTap: () {
+        // El Tooltip de abajo (ver _Casilla) sirve a quien usa mouse; en
+        // celular no es descubrible, así que el mismo toque que juega
+        // también muestra el mensaje en un SnackBar.
+        if (mensajeAtenuada != null) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mensajeAtenuada)));
+        }
+        onTap(posicion);
+      },
     );
   }
 }

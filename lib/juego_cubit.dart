@@ -77,8 +77,11 @@ class JuegoCubit extends Cubit<JuegoEstado> {
 
   /// Si ya hay un ancla y la casilla es uno de sus destinos válidos,
   /// coloca el número ahí. Si la casilla es una de las posibles anclas
-  /// para el dado elegido, la selecciona como ancla. Cualquier otro toque
-  /// no hace nada: no se puede anclar en una casilla cualquiera.
+  /// para el dado elegido, la selecciona como ancla. Si todavía no se
+  /// eligió ningún dado, pero la casilla ya sirve de ancla directa para
+  /// alguno de los dos (ver [JuegoEstado.casillasAnclaDirectas]), se infiere
+  /// el dado y se ancla en el mismo toque: así no hace falta tocar primero
+  /// el dado para anclar. Cualquier otro toque no hace nada.
   void tocarCasilla(PosicionCasilla posicion) {
     if (state.ancla != null && state.casillasValidas.contains(posicion)) {
       emit(aplicarColocarNumero(state, posicion, jugadorId: _jugador.jugadorActualId));
@@ -87,6 +90,15 @@ class JuegoCubit extends Cubit<JuegoEstado> {
 
     if (state.casillasAnclaPosibles.contains(posicion)) {
       emit(aplicarSeleccionarAncla(state, posicion));
+      return;
+    }
+
+    if (state.ancla == null && state.numeroAnclaElegido == null) {
+      final numeroInferido = state.casillasAnclaDirectas[posicion];
+      if (numeroInferido != null) {
+        final conDadoElegido = aplicarSeleccionarDado(state, numeroInferido);
+        emit(aplicarSeleccionarAncla(conDadoElegido, posicion));
+      }
     }
   }
 

@@ -135,6 +135,32 @@ void main() {
       semantica.dispose();
     });
 
+    testWidgets('tocar una ficha de zona muestra su regla en un snackbar (para quien no usa mouse)', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: TablaPuntosZonas(
+              zonas: [_azulSuperior],
+              nivel: configuracionNivel1,
+              eventos: const [],
+              jugadorId: 'ana',
+              vertical: true,
+            ),
+          ),
+        ),
+      );
+
+      final nombre = configuracionNivel1.nombresDeZona[idDeZona(_azulSuperior)]!;
+      final mensaje = '$nombre · ${_azulSuperior.tipo.descripcion}';
+
+      await tester.tap(find.byTooltip(mensaje));
+      await tester.pump();
+
+      expect(find.widgetWithText(SnackBar, mensaje), findsOneWidget);
+    });
+
     testWidgets('con las zonas de cualquier nivel, en fila o en columna, no genera overflow', (tester) async {
       tester.view.physicalSize = const Size(320, 400);
       tester.view.devicePixelRatio = 1.0;

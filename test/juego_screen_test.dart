@@ -126,6 +126,45 @@ void main() {
 
         expect(tester.takeException(), isNull);
       });
+
+      testWidgets('el diálogo de reglas tampoco genera overflow en un ancho reducido', (tester) async {
+        tester.view.physicalSize = const Size(320, 800);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        await tester.pumpWidget(_pantallaDePrueba([1, 6]));
+
+        await tester.tap(find.byTooltip('Reglas de las zonas'));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(ReglasZonaPanel), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      });
+
+      testWidgets(
+        'en una pantalla chica y con letra grande del sistema, la pantalla se desplaza en vez de desbordar',
+        (tester) async {
+          // 320x568 es el tamaño de un iPhone SE; 1.3x es un tamaño de letra
+          // "grande" común en accesibilidad, no un extremo. Antes de que el
+          // tablero dejara de usar Expanded, esta combinación desbordaba la
+          // pantalla (franja amarilla y negra) porque el contenido fijo de
+          // arriba (puntaje, instrucción, dados) ya no dejaba alto
+          // suficiente para el tablero.
+          tester.view.physicalSize = const Size(320, 568);
+          tester.view.devicePixelRatio = 1.0;
+          tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+          addTearDown(tester.view.resetPhysicalSize);
+          addTearDown(tester.view.resetDevicePixelRatio);
+          addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+          await tester.pumpWidget(_pantallaDePrueba([1, 6]));
+          await tester.tap(find.text('Tirar dados'));
+          await tester.pump();
+
+          expect(tester.takeException(), isNull);
+        },
+      );
     });
 
     group('flujos completos de un turno (colocar o saltar)', () {
@@ -164,6 +203,51 @@ void main() {
         // offsetDados: su primer GestureDetector vuelve a ser el índice 0.
         final casillaDestino = find.byType(GestureDetector).at(0 * 7 + 1);
         expect(find.descendant(of: casillaDestino, matching: find.text('6')), findsOneWidget);
+      });
+
+      testWidgets('tocar directo una casilla-ancla, sin tocar antes ningún dado', (tester) async {
+        await tester.pumpWidget(_pantallaDePrueba([1, 6]));
+
+        await tester.tap(find.text('Tirar dados'));
+        await tester.pump();
+
+        // Los 2 GestureDetector de los dados van antes que los del tablero.
+        const offsetDados = 2;
+
+        // (0,2) tiene el 1: un solo toque alcanza para anclar (se infiere
+        // que el dado usado es el que vale 1), sin pasar por el DadoWidget.
+        await tester.tap(find.byType(GestureDetector).at(offsetDados + 0 * 7 + 2));
+        await tester.pump();
+        expect(find.textContaining('colocar el 6'), findsOneWidget);
+      });
+
+      testWidgets('tocar el otro dado después de ya anclado suelta el ancla y permite re-anclar', (
+        tester,
+      ) async {
+        await tester.pumpWidget(_pantallaDePrueba([1, 6]));
+
+        await tester.tap(find.text('Tirar dados'));
+        await tester.pump();
+
+        // Elige el dado que vale 1 y ancla en (0,2).
+        await tester.tap(find.byType(DadoWidget).first);
+        await tester.pump();
+
+        const offsetDados = 2;
+        await tester.tap(find.byType(GestureDetector).at(offsetDados + 0 * 7 + 2));
+        await tester.pump();
+        expect(find.textContaining('colocar el 6'), findsOneWidget);
+
+        // Cambia de opinión: toca el OTRO dado (el 6). Antes del fix, este
+        // dado quedaba bloqueado porque ya había un ancla elegida.
+        await tester.tap(find.byType(DadoWidget).last);
+        await tester.pump();
+        expect(find.textContaining('casilla con el 6'), findsOneWidget);
+
+        // Puede re-anclar con el nuevo número: (6,4) tiene el 6.
+        await tester.tap(find.byType(GestureDetector).at(offsetDados + 6 * 7 + 4));
+        await tester.pump();
+        expect(find.textContaining('colocar el 1'), findsOneWidget);
       });
 
       testWidgets('elegir el otro dado ancla con el número contrario', (tester) async {
@@ -287,6 +371,43 @@ void main() {
           await tester.pump(const Duration(seconds: 1));
         }
         expect(find.text('+7 puntos'), findsNothing);
+      });
+
+      testWidgets('el aviso de puntuacion no genera overflow en un ancho reducido', (tester) async {
+        tester.view.physicalSize = const Size(320, 800);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        final tablero = List.generate(7, (_) => List<int?>.filled(7, null));
+        tablero[4][6] = 2;
+        tablero[5][6] = 2;
+        tablero[6][5] = 2; // ancla; (5,5) queda como ultimo cupo de la zona azul
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: _conSonido(
+              BlocProvider(
+                create: (_) => JuegoCubit(tablero, random: _DadosFijos([2, 2])),
+                child: const JuegoScreen(),
+              ),
+            ),
+          ),
+        );
+
+        await tester.tap(find.text('Tirar dados'));
+        await tester.pump();
+        await tester.tap(find.byType(DadoWidget).first);
+        await tester.pump();
+
+        const offsetDados = 2;
+        await tester.tap(find.byType(GestureDetector).at(offsetDados + 6 * 7 + 5)); // (6,5) ancla
+        await tester.pump();
+        await tester.tap(find.byType(GestureDetector).at(offsetDados + 5 * 7 + 5)); // (5,5) destino
+        await tester.pump();
+
+        expect(find.text('Zona Azul inferior derecha completada'), findsOneWidget);
+        expect(tester.takeException(), isNull);
       });
 
       testWidgets('una reconstruccion sin eventos nuevos no vuelve a mostrar el aviso', (

@@ -190,6 +190,7 @@ void main() {
       final valores = List.generate(7, (_) => List<int?>.filled(7, null));
       const atenuada = PosicionCasilla(0, 1);
       const vecinaSinAtenuar = PosicionCasilla(0, 0);
+      PosicionCasilla? tocada;
 
       await tester.pumpWidget(
         MaterialApp(
@@ -201,7 +202,7 @@ void main() {
               repetidas: const {},
               atenuadas: {atenuada: 'Ana ya completó esta zona'},
               seleccionada: null,
-              onTap: (_) {},
+              onTap: (posicion) => tocada = posicion,
             ),
           ),
         ),
@@ -227,6 +228,15 @@ void main() {
       );
 
       expect(find.byTooltip('Ana ya completó esta zona'), findsOneWidget);
+
+      // En celular el tooltip por hover no es descubrible: tocar la
+      // casilla debe mostrar el mismo mensaje en un SnackBar, sin dejar
+      // de disparar la jugada normal (onTap sigue llamándose).
+      await tester.tap(find.byType(GestureDetector).at(atenuada.fila * 7 + atenuada.columna));
+      await tester.pump();
+
+      expect(tocada, atenuada);
+      expect(find.widgetWithText(SnackBar, 'Ana ya completó esta zona'), findsOneWidget);
     });
 
     group('TableroWidget: layout parametrizado', () {
