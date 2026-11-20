@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:bloc/bloc.dart';
 
 import 'tablero_layout.dart';
@@ -102,8 +104,11 @@ class NumerosInicialesEstado {
 /// validar la regla de cada zona al elegir un número — ver
 /// [NumerosInicialesEstado.numeroValidoEnZona].
 class NumerosInicialesCubit extends Cubit<NumerosInicialesEstado> {
-  NumerosInicialesCubit(List<PosicionCasilla> casillasEstrella, List<ZonaTablero> zonas)
-      : super(NumerosInicialesEstado.vacio(casillasEstrella, zonas));
+  NumerosInicialesCubit(List<PosicionCasilla> casillasEstrella, List<ZonaTablero> zonas, {Random? random})
+      : _random = random ?? Random(),
+        super(NumerosInicialesEstado.vacio(casillasEstrella, zonas));
+
+  final Random _random;
 
   /// Asigna [valor] a la casilla [indice] (o la vacía si [valor] es null).
   void seleccionar(int indice, int? valor) {
@@ -114,5 +119,41 @@ class NumerosInicialesCubit extends Cubit<NumerosInicialesEstado> {
       casillasEstrella: state.casillasEstrella,
       zonas: state.zonas,
     ));
+  }
+
+  /// Rellena las 6 casillas con una combinación válida al azar (pisa lo que
+  /// ya estuviera elegido): para quien no quiere ir tocando cada estrella a
+  /// mano. Respeta la regla de cada zona igual que la selección guiada,
+  /// incluidos los rangos de las zonas naranjas del nivel 4 (p.ej. la
+  /// superior solo acepta 4-6 y la inferior 1-3), y nunca repite un número.
+  /// Prueba combinaciones al azar con retroceso (backtracking): el orden en
+  /// que se llenan las casillas y los números que se prueban en cada una se
+  /// mezclan, pero si una rama no lleva a una combinación completa válida,
+  /// se vuelve atrás y se prueba otra, así que siempre encuentra una
+  /// mientras exista (como pasa en los 4 niveles oficiales).
+  void aleatorizar() {
+    final cantidad = state.casillasEstrella.length;
+    final orden = List.generate(cantidad, (i) => i)..shuffle(_random);
+    final valores = List<int?>.filled(cantidad, null);
+    if (_asignar(orden, 0, valores)) {
+      emit(NumerosInicialesEstado(valores, casillasEstrella: state.casillasEstrella, zonas: state.zonas));
+    }
+  }
+
+  bool _asignar(List<int> orden, int paso, List<int?> valores) {
+    if (paso == orden.length) return true;
+
+    final indice = orden[paso];
+    final candidatos = [1, 2, 3, 4, 5, 6]..shuffle(_random);
+    final parcial = NumerosInicialesEstado(valores, casillasEstrella: state.casillasEstrella, zonas: state.zonas);
+    for (final numero in candidatos) {
+      if (valores.contains(numero)) continue;
+      if (!parcial.numeroValidoEnZona(indice, numero)) continue;
+
+      valores[indice] = numero;
+      if (_asignar(orden, paso + 1, valores)) return true;
+      valores[indice] = null;
+    }
+    return false;
   }
 }

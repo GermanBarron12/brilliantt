@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:test/test.dart';
 
 import 'package:brilliant/configuracion_nivel.dart';
@@ -171,6 +173,77 @@ void main() {
 
         expect(cubit.state.tieneInvalidosDeZona, isFalse);
         expect(cubit.state.tieneRepetidos, isFalse);
+        expect(cubit.state.esValido, isTrue);
+        cubit.close();
+      });
+    });
+
+    group('NumerosInicialesCubit: aleatorizar', () {
+      test('rellena las 6 casillas con una combinacion valida (nivel 1)', () {
+        final cubit = NumerosInicialesCubit(casillasEstrella, configuracionNivel1.zonas, random: Random(1));
+
+        cubit.aleatorizar();
+
+        expect(cubit.state.valores.every((v) => v != null), isTrue);
+        expect(cubit.state.esValido, isTrue);
+        cubit.close();
+      });
+
+      test('respeta los rangos de las zonas naranjas del nivel 4 (superior 4-6, inferior 1-3)', () {
+        // Se repite con varias semillas para no depender de que una sola
+        // tirada de la mezcla aleatoria caiga bien.
+        for (var semilla = 0; semilla < 20; semilla++) {
+          final cubit = NumerosInicialesCubit(
+            configuracionNivel4.casillasEstrella,
+            configuracionNivel4.zonas,
+            random: Random(semilla),
+          );
+
+          cubit.aleatorizar();
+
+          expect(cubit.state.esValido, isTrue, reason: 'semilla $semilla');
+          expect(cubit.state.valores[0], inInclusiveRange(4, 6), reason: 'naranja superior, semilla $semilla');
+          expect(cubit.state.valores[5], inInclusiveRange(1, 3), reason: 'naranja inferior, semilla $semilla');
+          cubit.close();
+        }
+      });
+
+      test('pisa los numeros ya elegidos a mano', () {
+        final cubit = NumerosInicialesCubit(casillasEstrella, configuracionNivel1.zonas, random: Random(7));
+        for (var i = 0; i < 6; i++) {
+          cubit.seleccionar(i, 1);
+        }
+        expect(cubit.state.tieneRepetidos, isTrue);
+
+        cubit.aleatorizar();
+
+        expect(cubit.state.tieneRepetidos, isFalse);
+        expect(cubit.state.esValido, isTrue);
+        cubit.close();
+      });
+
+      test('funciona con una cantidad de casillas distinta a 6', () {
+        final nivelDePrueba = ConfiguracionNivel(
+          id: 91,
+          nombre: 'Nivel de prueba (3 estrellas)',
+          layout: const [
+            [ColorZona.rojo, ColorZona.verde, ColorZona.azul],
+          ],
+          casillasEstrella: const [
+            PosicionCasilla(0, 0),
+            PosicionCasilla(0, 1),
+            PosicionCasilla(0, 2),
+          ],
+        );
+        final cubit = NumerosInicialesCubit(
+          nivelDePrueba.casillasEstrella,
+          nivelDePrueba.zonas,
+          random: Random(3),
+        );
+
+        cubit.aleatorizar();
+
+        expect(cubit.state.valores.every((v) => v != null), isTrue);
         expect(cubit.state.esValido, isTrue);
         cubit.close();
       });

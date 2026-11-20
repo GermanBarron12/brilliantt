@@ -84,6 +84,11 @@ class _NumerosInicialesVista extends StatelessWidget {
                   ),
                 ],
                 const SizedBox(height: 16),
+                OutlinedButton(
+                  onPressed: () => context.read<NumerosInicialesCubit>().aleatorizar(),
+                  child: const Text('Números aleatorios'),
+                ),
+                const SizedBox(height: 8),
                 ElevatedButton(
                   onPressed: estado.esValido ? () => _iniciarPartida(context, estado) : null,
                   child: const Text('Inicio'),

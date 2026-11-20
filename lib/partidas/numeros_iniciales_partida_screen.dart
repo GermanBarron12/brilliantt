@@ -250,6 +250,13 @@ class _NumerosInicialesPartidaScreenState extends State<NumerosInicialesPartidaS
                 ],
                 if (_error != null) ...[const SizedBox(height: 12), BannerErrorPartida(mensaje: _error!)],
                 const SizedBox(height: 16),
+                if (!_yaConfirme) ...[
+                  OutlinedButton(
+                    onPressed: _enviando ? null : () => _cubit.aleatorizar(),
+                    child: const Text('Números aleatorios'),
+                  ),
+                  const SizedBox(height: 8),
+                ],
                 if (_yaConfirme)
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,

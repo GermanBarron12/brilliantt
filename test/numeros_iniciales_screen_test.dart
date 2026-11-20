@@ -102,6 +102,36 @@ void main() {
     });
   });
 
+  group('NumerosInicialesScreen: números aleatorios', () {
+    testWidgets('el boton llena las 6 casillas y habilita Inicio sin tocar cada estrella', (tester) async {
+      await tester.pumpWidget(const MaterialApp(home: NumerosInicialesScreen()));
+
+      expect(botonInicio(tester).onPressed, isNull);
+
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Números aleatorios'));
+      await tester.pump();
+
+      expect(botonInicio(tester).onPressed, isNotNull);
+      expect(find.text('Los números no pueden repetirse.'), findsNothing);
+      expect(find.text('Hay números que no respetan la regla de su zona.'), findsNothing);
+    });
+
+    testWidgets('respeta las zonas naranjas del nivel 4 al generar al azar', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(home: NumerosInicialesScreen(configuracionNivel: configuracionNivel4)),
+      );
+
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Números aleatorios'));
+      await tester.pump();
+
+      expect(find.text('Hay números que no respetan la regla de su zona.'), findsNothing);
+      expect(
+        tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, 'Inicio')).onPressed,
+        isNotNull,
+      );
+    });
+  });
+
   group('NumerosInicialesScreen: adaptación a pantallas chicas', () {
     testWidgets('no genera overflow en un ancho reducido, incluido el diálogo "Elige un número"', (
       tester,

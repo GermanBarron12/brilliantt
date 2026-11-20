@@ -214,6 +214,32 @@ void main() {
       expect(botonConfirmar(tester).onPressed, isNotNull);
     });
 
+    testWidgets('el boton de numeros aleatorios llena las 6 estrellas y habilita confirmar', (tester) async {
+      await abrir(tester, MockClient((_) async => _respuesta(_partidaJson())));
+
+      expect(botonConfirmar(tester).onPressed, isNull);
+
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Números aleatorios'));
+      await tester.pump();
+
+      expect(botonConfirmar(tester).onPressed, isNotNull);
+      expect(find.text('Los números no pueden repetirse.'), findsNothing);
+    });
+
+    testWidgets('el boton de numeros aleatorios desaparece una vez confirmados los numeros', (tester) async {
+      await abrir(
+        tester,
+        MockClient((request) async => _respuesta(_partidaJson(anaLista: true))),
+      );
+
+      await _elegirLosSeis(tester);
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Confirmar números'));
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.widgetWithText(OutlinedButton, 'Números aleatorios'), findsNothing);
+    });
+
     testWidgets('no genera overflow en un ancho reducido', (tester) async {
       tester.view.physicalSize = const Size(320, 700);
       tester.view.devicePixelRatio = 1.0;
