@@ -12,9 +12,10 @@ import 'partida_juego_screen.dart';
 import 'partida_socket.dart';
 
 /// Sala de espera de una partida: muestra el código para invitar, quién ya
-/// se unió y, si sos el creador, el botón para arrancar. Se actualiza sola
-/// mientras está en pantalla (no hay un canal en vivo todavía para el
-/// lobby: el websocket recién se habilita cuando la partida ya empezó).
+/// se unió y quién ya se marcó listo. Cuando todos los jugadores (dos o
+/// más) están listos, la partida arranca sola. Se actualiza sola mientras
+/// está en pantalla (no hay un canal en vivo todavía para el lobby: el
+/// websocket recién se habilita cuando la partida ya empezó).
 class LobbyScreen extends StatefulWidget {
   const LobbyScreen({
     super.key,
@@ -52,7 +53,7 @@ class LobbyScreen extends StatefulWidget {
 class _LobbyScreenState extends State<LobbyScreen> {
   late Partida _partida;
   Timer? _timer;
-  bool _iniciando = false;
+  bool _marcandoListo = false;
   String? _error;
   bool _avisoPartidaIniciada = false;
 
@@ -70,8 +71,11 @@ class _LobbyScreenState extends State<LobbyScreen> {
     super.dispose();
   }
 
-  bool get _esCreador => widget.usuarioId == _partida.creadorId;
   bool get _alcanzanLosJugadores => _partida.participantes.length >= 2;
+
+  Participante get _yo => _partida.participantes.firstWhere((p) => p.usuarioId == widget.usuarioId);
+  bool get _yoEstoyListo => _yo.listo;
+  List<Participante> get _faltanDeListo => [for (final p in _partida.participantes) if (!p.listo) p];
 
   Future<void> _refrescar() async {
     try {
@@ -132,13 +136,17 @@ class _LobbyScreenState extends State<LobbyScreen> {
     );
   }
 
-  Future<void> _iniciar() async {
+  Future<void> _alternarListo() async {
     setState(() {
-      _iniciando = true;
+      _marcandoListo = true;
       _error = null;
     });
     try {
-      final partida = await widget.api.iniciar(_partida.codigoInvitacion, token: widget.token);
+      final partida = await widget.api.marcarListo(
+        _partida.codigoInvitacion,
+        token: widget.token,
+        listo: !_yoEstoyListo,
+      );
       if (!mounted) return;
       setState(() => _partida = partida);
       _avisarSiYaEstaIniciada();
@@ -146,7 +154,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
       if (!mounted) return;
       setState(() => _error = error.message);
     } finally {
-      if (mounted) setState(() => _iniciando = false);
+      if (mounted) setState(() => _marcandoListo = false);
     }
   }
 
@@ -181,7 +189,11 @@ class _LobbyScreenState extends State<LobbyScreen> {
                 ),
                 const SizedBox(height: 8),
                 for (final participante in _partida.participantes)
-                  _FilaJugador(nombre: participante.nombreUsuario, esCreador: participante.esCreador),
+                  _FilaJugador(
+                    nombre: participante.nombreUsuario,
+                    esCreador: participante.esCreador,
+                    listo: participante.listo,
+                  ),
                 for (var i = _partida.participantes.length; i < _partida.maxJugadores; i++)
                   const _FilaJugadorVacia(),
                 const SizedBox(height: 32),
@@ -191,30 +203,41 @@ class _LobbyScreenState extends State<LobbyScreen> {
                     textAlign: TextAlign.center,
                     style: textTheme.titleMedium,
                   )
-                else if (_esCreador)
+                else
                   Column(
                     children: [
                       ElevatedButton(
-                        onPressed: (_iniciando || !_alcanzanLosJugadores) ? null : _iniciar,
-                        child: _iniciando
+                        onPressed: _marcandoListo ? null : _alternarListo,
+                        style: _yoEstoyListo
+                            ? ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green.shade600,
+                                foregroundColor: Colors.white,
+                              )
+                            : null,
+                        child: _marcandoListo
                             ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                            : const Text('Iniciar partida'),
+                            : Text(_yoEstoyListo ? 'No estoy listo' : 'Estoy listo'),
                       ),
-                      if (!_alcanzanLosJugadores) ...[
-                        const SizedBox(height: 8),
+                      const SizedBox(height: 8),
+                      if (!_alcanzanLosJugadores)
                         Text(
                           'Necesitas al menos 2 jugadores para empezar.',
                           textAlign: TextAlign.center,
                           style: textTheme.bodySmall,
+                        )
+                      else if (_faltanDeListo.isEmpty)
+                        Text(
+                          '¡Todos listos! Arrancando...',
+                          textAlign: TextAlign.center,
+                          style: textTheme.bodySmall,
+                        )
+                      else
+                        Text(
+                          'Falta que se marquen listos: ${_faltanDeListo.map((p) => p.nombreUsuario).join(', ')}.',
+                          textAlign: TextAlign.center,
+                          style: textTheme.bodySmall,
                         ),
-                      ],
                     ],
-                  )
-                else
-                  Text(
-                    'Esperando a que el creador inicie la partida...',
-                    textAlign: TextAlign.center,
-                    style: textTheme.bodyMedium,
                   ),
               ],
             ),
@@ -269,17 +292,42 @@ class _CodigoInvitacion extends StatelessWidget {
 }
 
 class _FilaJugador extends StatelessWidget {
-  const _FilaJugador({required this.nombre, required this.esCreador});
+  const _FilaJugador({required this.nombre, required this.esCreador, required this.listo});
 
   final String nombre;
   final bool esCreador;
+  final bool listo;
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
       leading: const Icon(Icons.person),
       title: Text(nombre),
-      trailing: esCreador ? const Chip(label: Text('Creador')) : null,
+      subtitle: esCreador ? const Text('Creador') : null,
+      trailing: _EstadoListo(listo: listo),
+    );
+  }
+}
+
+class _EstadoListo extends StatelessWidget {
+  const _EstadoListo({required this.listo});
+
+  final bool listo;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final color = listo ? Colors.green.shade600 : colorScheme.outline;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(listo ? Icons.check_circle : Icons.hourglass_empty, color: color, size: 18),
+        const SizedBox(width: 4),
+        Text(
+          listo ? 'Listo' : 'Esperando',
+          style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 13),
+        ),
+      ],
     );
   }
 }

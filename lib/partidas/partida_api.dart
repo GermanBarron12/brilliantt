@@ -39,6 +39,14 @@ class PartidaApi {
     return Partida.fromJson(cuerpo['partida'] as Map<String, dynamic>);
   }
 
+  /// Marca (o desmarca) al jugador como listo para arrancar en el lobby.
+  /// Cuando todos los participantes están listos, el servidor hace pasar la
+  /// partida sola a elegir números iniciales.
+  Future<Partida> marcarListo(String codigo, {required String token, required bool listo}) async {
+    final cuerpo = await _post('/partidas/$codigo/listo', {'listo': listo}, token: token);
+    return Partida.fromJson(cuerpo['partida'] as Map<String, dynamic>);
+  }
+
   /// Confirma los números iniciales propios (uno por estrella del nivel, en
   /// el mismo orden que las estrellas). Cuando ya confirmaron todos, la
   /// partida que devuelve viene en estado `en_curso`.

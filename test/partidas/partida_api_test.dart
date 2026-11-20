@@ -73,6 +73,31 @@ void main() {
       expect(partida.turnoUsuarioId, 'u1');
     });
 
+    test('marcarListo manda el booleano y devuelve quien ya esta listo', () async {
+      http.Request? solicitudCapturada;
+      final client = MockClient((request) async {
+        solicitudCapturada = request;
+        final partida = _partidaJson()..['participantes'] = [
+          {
+            'usuarioId': 'u1',
+            'nombreUsuario': 'creador',
+            'ordenTurno': 0,
+            'estado': 'conectado',
+            'esCreador': true,
+            'listo': true,
+          },
+        ];
+        return http.Response(jsonEncode({'partida': partida}), 200);
+      });
+      final api = PartidaApi(baseUrl: 'http://test', client: client);
+
+      final partida = await api.marcarListo('ABC123', token: 'token-1', listo: true);
+
+      expect(solicitudCapturada!.url.path, '/partidas/ABC123/listo');
+      expect(jsonDecode(solicitudCapturada!.body), {'listo': true});
+      expect(partida.participantes.single.listo, isTrue);
+    });
+
     test('elegirNumerosIniciales manda los numeros y devuelve quien ya esta listo', () async {
       http.Request? solicitudCapturada;
       final client = MockClient((request) async {

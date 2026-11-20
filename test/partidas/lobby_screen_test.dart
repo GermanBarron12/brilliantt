@@ -27,8 +27,15 @@ class _CanalFalso implements CanalPartida {
   Future<void> cerrar() async => _entrante.close();
 }
 
-Participante _participante(String id, String nombre, int orden, {bool esCreador = false}) {
-  return Participante(usuarioId: id, nombreUsuario: nombre, ordenTurno: orden, estado: 'conectado', esCreador: esCreador);
+Participante _participante(String id, String nombre, int orden, {bool esCreador = false, bool listo = false}) {
+  return Participante(
+    usuarioId: id,
+    nombreUsuario: nombre,
+    ordenTurno: orden,
+    estado: 'conectado',
+    esCreador: esCreador,
+    listo: listo,
+  );
 }
 
 Partida _partida({
@@ -64,6 +71,7 @@ Map<String, dynamic> _partidaJson(Partida partida) => {
             'ordenTurno': p.ordenTurno,
             'estado': p.estado,
             'esCreador': p.esCreador,
+            'listo': p.listo,
           },
       ],
     };
@@ -94,7 +102,7 @@ void main() {
       expect(find.text('Jugadores (1/4)'), findsOneWidget);
     });
 
-    testWidgets('el creador ve el boton de iniciar deshabilitado con menos de 2 jugadores', (tester) async {
+    testWidgets('con menos de 2 jugadores se puede marcar listo pero se avisa que faltan jugadores', (tester) async {
       final partida = _partida(participantes: [_participante('u1', 'creador', 0, esCreador: true)]);
       final client = MockClient((request) async => http.Response(jsonEncode({'partida': _partidaJson(partida)}), 200));
       final api = PartidaApi(baseUrl: 'http://test', client: client);
@@ -106,15 +114,18 @@ void main() {
         ),
       );
 
-      final boton = tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, 'Iniciar partida'));
-      expect(boton.onPressed, isNull);
+      final boton = tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, 'Estoy listo'));
+      expect(boton.onPressed, isNotNull);
       expect(find.text('Necesitas al menos 2 jugadores para empezar.'), findsOneWidget);
     });
 
-    testWidgets('quien no es el creador ve el mensaje de espera, no el boton de iniciar', (tester) async {
+    testWidgets('muestra quien todavia no se marco listo', (tester) async {
       final partida = _partida(
         creadorId: 'otro',
-        participantes: [_participante('otro', 'creador', 0, esCreador: true), _participante('u2', 'yo', 1)],
+        participantes: [
+          _participante('otro', 'creador', 0, esCreador: true, listo: true),
+          _participante('u2', 'yo', 1),
+        ],
       );
       final client = MockClient((request) async => http.Response(jsonEncode({'partida': _partidaJson(partida)}), 200));
       final api = PartidaApi(baseUrl: 'http://test', client: client);
@@ -126,13 +137,19 @@ void main() {
         ),
       );
 
-      expect(find.text('Esperando a que el creador inicie la partida...'), findsOneWidget);
       expect(find.widgetWithText(ElevatedButton, 'Iniciar partida'), findsNothing);
+      expect(find.widgetWithText(ElevatedButton, 'Estoy listo'), findsOneWidget);
+      expect(find.text('Falta que se marquen listos: yo.'), findsOneWidget);
+      expect(find.text('Listo'), findsOneWidget);
+      expect(find.text('Esperando'), findsOneWidget);
     });
 
-    testWidgets('el creador puede iniciar la partida con 2 o mas jugadores', (tester) async {
+    testWidgets('al marcarse listo el ultimo jugador, la partida arranca sola', (tester) async {
       final partidaLobby = _partida(
-        participantes: [_participante('u1', 'creador', 0, esCreador: true), _participante('u2', 'invitado', 1)],
+        participantes: [
+          _participante('u1', 'creador', 0, esCreador: true, listo: true),
+          _participante('u2', 'invitado', 1),
+        ],
       );
       final partidaIniciada = Partida(
         id: partidaLobby.id,
@@ -144,7 +161,7 @@ void main() {
         participantes: partidaLobby.participantes,
       );
       final client = MockClient((request) async {
-        if (request.url.path.endsWith('/iniciar')) {
+        if (request.url.path.endsWith('/listo')) {
           return http.Response(jsonEncode({'partida': _partidaJson(partidaIniciada)}), 200);
         }
         return http.Response(jsonEncode({'partida': _partidaJson(partidaLobby)}), 200);
@@ -157,24 +174,27 @@ void main() {
         MaterialApp(
           home: LobbyScreen(
             api: api,
-            token: 'token-1',
-            usuarioId: 'u1',
+            token: 'token-2',
+            usuarioId: 'u2',
             partidaInicial: partidaLobby,
             onPartidaIniciada: (partida) => iniciadaRecibida = partida,
           ),
         ),
       );
 
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Iniciar partida'));
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Estoy listo'));
       await tester.pumpAndSettle();
 
       expect(find.text('¡La partida ya empezó!'), findsOneWidget);
       expect(iniciadaRecibida?.estado, 'eligiendo_numeros');
     });
 
-    testWidgets('sin onPartidaIniciada, al iniciar pasa solo a elegir los numeros iniciales', (tester) async {
+    testWidgets('sin onPartidaIniciada, al quedar todos listos pasa solo a elegir los numeros iniciales', (tester) async {
       final partidaLobby = _partida(
-        participantes: [_participante('u1', 'creador', 0, esCreador: true), _participante('u2', 'invitado', 1)],
+        participantes: [
+          _participante('u1', 'creador', 0, esCreador: true, listo: true),
+          _participante('u2', 'invitado', 1),
+        ],
       );
       final partidaIniciada = Partida(
         id: partidaLobby.id,
@@ -186,7 +206,7 @@ void main() {
         participantes: partidaLobby.participantes,
       );
       final client = MockClient((request) async {
-        if (request.url.path.endsWith('/iniciar')) {
+        if (request.url.path.endsWith('/listo')) {
           return http.Response(jsonEncode({'partida': _partidaJson(partidaIniciada)}), 200);
         }
         return http.Response(jsonEncode({'partida': _partidaJson(partidaLobby)}), 200);
@@ -197,14 +217,14 @@ void main() {
         MaterialApp(
           home: LobbyScreen(
             api: api,
-            token: 'token-1',
-            usuarioId: 'u1',
+            token: 'token-2',
+            usuarioId: 'u2',
             partidaInicial: partidaLobby,
           ),
         ),
       );
 
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Iniciar partida'));
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Estoy listo'));
       await tester.pump();
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
@@ -212,7 +232,7 @@ void main() {
       expect(find.byType(NumerosInicialesPartidaScreen), findsOneWidget);
     });
 
-    testWidgets('quien no es el creador tambien pasa a elegir numeros cuando el creador inicia', (tester) async {
+    testWidgets('quien no es el creador tambien pasa a elegir numeros cuando todos quedan listos', (tester) async {
       final partidaLobby = _partida(
         creadorId: 'otro',
         participantes: [_participante('otro', 'creador', 0, esCreador: true), _participante('u2', 'yo', 1)],

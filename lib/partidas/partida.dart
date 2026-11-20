@@ -25,6 +25,7 @@ class Participante extends Equatable {
     required this.estado,
     required this.esCreador,
     this.numerosListos = false,
+    this.listo = false,
   });
 
   final String usuarioId;
@@ -37,6 +38,11 @@ class Participante extends Equatable {
   /// son privados hasta que arranca la partida.
   final bool numerosListos;
 
+  /// Si ya se marcó listo para arrancar mientras la partida está en el
+  /// lobby. Cuando todos están listos, la partida pasa sola a elegir
+  /// números iniciales.
+  final bool listo;
+
   factory Participante.fromJson(Map<String, dynamic> json) {
     return Participante(
       usuarioId: json['usuarioId'] as String,
@@ -45,11 +51,13 @@ class Participante extends Equatable {
       estado: json['estado'] as String,
       esCreador: json['esCreador'] as bool,
       numerosListos: json['numerosListos'] as bool? ?? false,
+      listo: json['listo'] as bool? ?? false,
     );
   }
 
   @override
-  List<Object?> get props => [usuarioId, nombreUsuario, ordenTurno, estado, esCreador, numerosListos];
+  List<Object?> get props =>
+      [usuarioId, nombreUsuario, ordenTurno, estado, esCreador, numerosListos, listo];
 }
 
 /// El lobby/estado de una partida tal como lo devuelve la API REST
